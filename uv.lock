@@ -46,6 +46,7 @@ source = { editable = "." }
 [package.optional-dependencies]
 dev = [
     { name = "pytest" },
+    { name = "pyyaml" },
     { name = "ruff" },
 ]
 rules = [
@@ -59,6 +60,7 @@ sma = [
 requires-dist = [
     { name = "pymodbus", marker = "extra == 'sma'", specifier = "==3.11.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
     { name = "pyyaml", marker = "extra == 'rules'", specifier = ">=6.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9" },
 ]

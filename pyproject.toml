@@ -20,7 +20,7 @@ classifiers = [
 [project.optional-dependencies]
 sma = ["pymodbus==3.11.1"]
 rules = ["PyYAML>=6.0"]
-dev = ["pytest>=8.0", "ruff>=0.9"]
+dev = ["pytest>=8.0", "ruff>=0.9", "PyYAML>=6.0"]
 
 [project.scripts]
 powermanager = "powermanager_core.cli:main"
