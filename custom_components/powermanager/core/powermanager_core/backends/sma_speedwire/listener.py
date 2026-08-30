@@ -42,16 +42,12 @@ class SpeedwireListener:
         group: str = DEFAULT_MULTICAST_GROUP,
         port: int = DEFAULT_MULTICAST_PORT,
         interface: str = "0.0.0.0",
-        queue_size: int = 256,
     ) -> None:
         if not 1 <= port <= 65535:
             raise ValueError("port must be between 1 and 65535")
-        if queue_size < 1:
-            raise ValueError("queue_size must be positive")
         self._group = group
         self._port = port
         self._interface = interface
-        self._queue: asyncio.Queue[SpeedwireFrame] = asyncio.Queue(maxsize=queue_size)
         self._socket: socket.socket | None = None
 
     async def __aenter__(self) -> SpeedwireListener:

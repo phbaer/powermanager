@@ -16,5 +16,3 @@ def test_sma_signature_is_required() -> None:
 def test_listener_validates_configuration() -> None:
     with pytest.raises(ValueError):
         SpeedwireListener(port=0)
-    with pytest.raises(ValueError):
-        SpeedwireListener(queue_size=0)
