@@ -1,0 +1,62 @@
+name: HACS integration
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+    paths:
+      - "custom_components/powermanager/**"
+      - "hacs.json"
+  pull_request:
+    paths:
+      - "custom_components/powermanager/**"
+      - "hacs.json"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Optional existing v* tag to publish (leave empty for validation only)"
+        required: false
+        type: string
+
+env:
+  INTEGRATION_PATH: custom_components/powermanager
+  RELEASE_ARCHIVE: powermanager.zip
+
+jobs:
+  validate-and-release:
+    runs-on: node
+    steps:
+      - name: Check out source
+        uses: https://data.forgejo.org/actions/checkout@v6
+        with:
+          ref: ${{ inputs.release_tag || forgejo.ref }}
+
+      - name: Check integration layout
+        run: test -f "$INTEGRATION_PATH/manifest.json"
+
+      - name: Validate HACS integration
+        uses: https://github.com/hacs/action@main
+        with:
+          category: integration
+          ignore: brands images license topics
+
+      - name: Package integration
+        if: forgejo.ref_type == 'tag' || inputs.release_tag != ''
+        run: |
+          mkdir -p dist
+          zip -r "dist/$RELEASE_ARCHIVE" "$INTEGRATION_PATH"
+
+      - name: Publish release asset
+        if: forgejo.ref_type == 'tag' || inputs.release_tag != ''
+        uses: https://data.forgejo.org/actions/forgejo-release@98265452477dafb3f0f27ba9c462c90b18cb44fd # v2.13.4
+        with:
+          direction: upload
+          url: ${{ forgejo.server_url }}
+          repo: ${{ forgejo.repository }}
+          tag: ${{ inputs.release_tag || forgejo.ref_name }}
+          title: PowerManager ${{ inputs.release_tag || forgejo.ref_name }}
+          sha: ${{ forgejo.sha }}
+          token: ${{ forgejo.token }}
+          release-dir: dist
+          prerelease: ${{ contains(inputs.release_tag || forgejo.ref_name, '-') }}
+          override: true
