@@ -23,13 +23,14 @@ def decode_registers(
     if any(word < 0 or word > 0xFFFF for word in words):
         raise RegisterDecodeError(f"{definition.key} contains a non-16-bit register value")
 
-    raw = words[0] if definition.width == 1 else (words[0] << 16) | words[1]
+    raw_unsigned = words[0] if definition.width == 1 else (words[0] << 16) | words[1]
+    if raw_unsigned in definition.invalid_values:
+        return None
+
+    raw = raw_unsigned
     if definition.data_type in (RegisterDataType.S16, RegisterDataType.S32):
         bits = 16 if definition.data_type is RegisterDataType.S16 else 32
         if raw & (1 << (bits - 1)):
             raw -= 1 << bits
-    if raw in definition.invalid_values:
-        return None
-
     value = raw * definition.scale
     return int(value) if definition.scale == 1 else value

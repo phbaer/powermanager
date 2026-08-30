@@ -6,7 +6,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo as HaDeviceInfo
@@ -34,6 +39,50 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
         key="communication_state",
         translation_key="communication_state",
         value_fn=lambda coordinator: coordinator.data.battery_state.communication_state,
+    ),
+    PowerManagerSensorDescription(
+        key="operating_state",
+        translation_key="operating_state",
+        value_fn=lambda coordinator: coordinator.data.battery_state.operating_state,
+    ),
+    PowerManagerSensorDescription(
+        key="battery_soc",
+        translation_key="battery_soc",
+        device_class=SensorDeviceClass.BATTERY,
+        native_unit_of_measurement="%",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.battery_state.battery_soc_percent,
+    ),
+    PowerManagerSensorDescription(
+        key="battery_power",
+        translation_key="battery_power",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement="W",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.battery_state.battery_power_w,
+    ),
+    PowerManagerSensorDescription(
+        key="battery_current",
+        translation_key="battery_current",
+        device_class=SensorDeviceClass.CURRENT,
+        native_unit_of_measurement="A",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.battery_state.battery_current_a,
+    ),
+    PowerManagerSensorDescription(
+        key="battery_voltage",
+        translation_key="battery_voltage",
+        device_class=SensorDeviceClass.VOLTAGE,
+        native_unit_of_measurement="V",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.battery_state.battery_voltage_v,
+    ),
+    PowerManagerSensorDescription(
+        key="discharge_soc_limit",
+        translation_key="discharge_soc_limit",
+        native_unit_of_measurement="%",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.battery_state.discharge_limit_soc_percent,
     ),
 )
 

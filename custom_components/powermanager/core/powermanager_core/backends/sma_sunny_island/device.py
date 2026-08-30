@@ -19,20 +19,31 @@ DEVICE_TYPE = RegisterDefinition(
     address=30053,
     table=RegisterTable.INPUT,
     data_type=RegisterDataType.U32,
+    invalid_values=frozenset({0xFFFFFFFF}),
 )
-STATUS = RegisterDefinition("status", 30201, RegisterTable.INPUT, RegisterDataType.U32)
-BATTERY_SOC = RegisterDefinition("battery_soc", 30845, RegisterTable.INPUT, RegisterDataType.U32)
+STATUS = RegisterDefinition(
+    "status", 30201, RegisterTable.INPUT, RegisterDataType.U32,
+    invalid_values=frozenset({0xFFFFFFFF}),
+)
+BATTERY_SOC = RegisterDefinition(
+    "battery_soc", 30845, RegisterTable.INPUT, RegisterDataType.U32,
+    invalid_values=frozenset({0xFFFFFFFF}),
+)
 BATTERY_POWER = RegisterDefinition(
-    "battery_power", 30775, RegisterTable.INPUT, RegisterDataType.S32
+    "battery_power", 30775, RegisterTable.INPUT, RegisterDataType.S32,
+    invalid_values=frozenset({0xFFFFFFFF, 0x80000000}),
 )
 BATTERY_CURRENT = RegisterDefinition(
-    "battery_current", 30843, RegisterTable.INPUT, RegisterDataType.S32, scale=0.001
+    "battery_current", 30843, RegisterTable.INPUT, RegisterDataType.S32, scale=0.001,
+    invalid_values=frozenset({0xFFFFFFFF, 0x80000000}),
 )
 BATTERY_VOLTAGE = RegisterDefinition(
-    "battery_voltage", 30851, RegisterTable.INPUT, RegisterDataType.U32, scale=0.01
+    "battery_voltage", 30851, RegisterTable.INPUT, RegisterDataType.U32, scale=0.01,
+    invalid_values=frozenset({0xFFFFFFFF}),
 )
 DISCHARGE_SOC_LIMIT = RegisterDefinition(
-    "discharge_soc_limit", 31009, RegisterTable.INPUT, RegisterDataType.U32
+    "discharge_soc_limit", 31009, RegisterTable.INPUT, RegisterDataType.U32,
+    invalid_values=frozenset({0xFFFFFFFF}),
 )
 SUPPORTED_DEVICE_TYPES: dict[int, str] = {9332: "Sunny Island SI4.4M-12"}
 STATUS_NAMES = {35: "Error", 303: "Off", 307: "Ok", 455: "Warning"}
@@ -121,7 +132,11 @@ class SunnyIslandClient(BatteryBackend):
             battery_voltage_v=_as_float(values["battery_voltage"]),
             battery_current_a=_as_float(values["battery_current"]),
             discharge_limit_soc_percent=_as_float(values["discharge_soc_limit"]),
-            operating_state=STATUS_NAMES.get(values["status"], f"Unknown ({values['status']})"),
+            operating_state=(
+                None
+                if values["status"] is None
+                else STATUS_NAMES.get(values["status"], f"Unknown ({values['status']})")
+            ),
             communication_state=CommunicationState.ONLINE,
         )
 

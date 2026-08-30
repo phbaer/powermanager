@@ -35,3 +35,11 @@ class RegisterDecoderTest(unittest.TestCase):
     def test_rejects_short_reads(self) -> None:
         with self.assertRaises(RegisterDecodeError):
             decode_registers([1], definition(RegisterDataType.U32))
+
+    def test_signed_invalid_sentinel_is_checked_before_sign_conversion(self) -> None:
+        self.assertIsNone(
+            decode_registers(
+                [0x8000, 0x0000],
+                definition(RegisterDataType.S32, invalid_values=frozenset({0x80000000})),
+            )
+        )

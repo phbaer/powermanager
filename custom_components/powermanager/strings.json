@@ -20,7 +20,13 @@
   "entity": {
     "sensor": {
       "device_type": {"name": "Device type"},
-      "communication_state": {"name": "Communication state"}
+      "communication_state": {"name": "Communication state"},
+      "operating_state": {"name": "Operating state"},
+      "battery_soc": {"name": "Battery state of charge"},
+      "battery_power": {"name": "Battery power"},
+      "battery_current": {"name": "Battery current"},
+      "battery_voltage": {"name": "Battery voltage"},
+      "discharge_soc_limit": {"name": "Discharge SoC limit"}
     }
   }
 }
