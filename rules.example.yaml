@@ -1,0 +1,27 @@
+# PowerManager control policy example.
+# This file is intentionally disabled; simulation requires --enabled explicitly.
+version: 1
+enabled: false
+
+rules:
+  # Charge when the grid is exporting surplus energy and the battery has room.
+  - id: charge-solar-surplus
+    priority: 100
+    when:
+      grid_power_below_w: -500
+      battery_soc_below_percent: 90
+      between: ["09:00", "16:00"]
+    then:
+      target_power_w: 1500
+    hold_seconds: 300
+
+  # A lower-priority daytime rule keeps a smaller charge target near the SoC limit.
+  - id: charge-small-surplus
+    priority: 50
+    when:
+      grid_power_below_w: -200
+      battery_soc_below_percent: 98
+      between: ["08:00", "18:00"]
+    then:
+      target_power_w: 500
+    hold_seconds: 300
