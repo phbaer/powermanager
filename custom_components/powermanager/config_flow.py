@@ -16,13 +16,17 @@ from .const import (
     CONF_PORT,
     CONF_PV_POWER_ENTITY,
     CONF_SCAN_INTERVAL,
+    CONF_TELEMETRY_MAX_AGE,
     CONF_UNIT_ID,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL_SECONDS,
+    DEFAULT_TELEMETRY_MAX_AGE_SECONDS,
     DEFAULT_UNIT_ID,
     DOMAIN,
     MAX_SCAN_INTERVAL_SECONDS,
+    MAX_TELEMETRY_MAX_AGE_SECONDS,
     MIN_SCAN_INTERVAL_SECONDS,
+    MIN_TELEMETRY_MAX_AGE_SECONDS,
 )
 from .core.powermanager_core.backends.sma_sunny_island import (
     SunnyIslandClient,
@@ -117,6 +121,17 @@ class PowerManagerOptionsFlow(OptionsFlow):
                     CONF_LOAD_POWER_ENTITY,
                     default=self._config_entry.options.get(CONF_LOAD_POWER_ENTITY, ""),
                 ): str,
+                vol.Required(
+                    CONF_TELEMETRY_MAX_AGE,
+                    default=self._config_entry.options.get(
+                        CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS
+                    ),
+                ): vol.All(
+                    vol.Coerce(int),
+                    vol.Range(
+                        min=MIN_TELEMETRY_MAX_AGE_SECONDS, max=MAX_TELEMETRY_MAX_AGE_SECONDS
+                    ),
+                ),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

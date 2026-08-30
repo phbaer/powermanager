@@ -17,8 +17,10 @@ from .const import (
     CONF_PORT,
     CONF_PV_POWER_ENTITY,
     CONF_SCAN_INTERVAL,
+    CONF_TELEMETRY_MAX_AGE,
     CONF_UNIT_ID,
     DEFAULT_SCAN_INTERVAL_SECONDS,
+    DEFAULT_TELEMETRY_MAX_AGE_SECONDS,
     DOMAIN,
 )
 from .core.powermanager_core.backends.sma_sunny_island import (
@@ -64,6 +66,7 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             entry.options.get(CONF_GRID_POWER_ENTITY),
             entry.options.get(CONF_PV_POWER_ENTITY),
             entry.options.get(CONF_LOAD_POWER_ENTITY),
+            entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS),
         )
 
     async def _async_update_data(self) -> PowerManagerData:

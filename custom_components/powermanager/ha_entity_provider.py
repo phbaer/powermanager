@@ -18,8 +18,10 @@ class HomeAssistantEntityGridProvider:
         grid_entity: str | None = None,
         pv_entity: str | None = None,
         load_entity: str | None = None,
+        max_age_seconds: int = 120,
     ) -> None:
         self._hass = hass
+        self._max_age_seconds = max_age_seconds
         self._entities = {
             "grid_power_w": grid_entity,
             "pv_power_w": pv_entity,
@@ -54,6 +56,12 @@ class HomeAssistantEntityGridProvider:
             return None
         state = self._hass.states.get(entity_id)
         if state is None or state.state in ("unknown", "unavailable"):
+            return None
+        last_updated = state.last_updated
+        if last_updated.tzinfo is None:
+            last_updated = last_updated.replace(tzinfo=UTC)
+        age = (datetime.now(UTC) - last_updated).total_seconds()
+        if age > self._max_age_seconds:
             return None
         try:
             value = float(state.state)
