@@ -26,6 +26,9 @@ def build_parser() -> argparse.ArgumentParser:
     capture.add_argument("--duration", type=float, default=30.0, help="Capture duration in seconds")
     capture.add_argument("--group", default="239.12.255.254", help="Multicast group")
     capture.add_argument("--port", type=int, default=9522, help="UDP port (default: 9522)")
+    capture.add_argument(
+        "--interface", default="0.0.0.0", help="Local interface/address for multicast membership"
+    )
     capture.add_argument("--show-hex", action="store_true", help="Print full frame payloads as hex")
     return parser
 
@@ -56,7 +59,7 @@ async def _speedwire_capture(args: argparse.Namespace) -> int:
     if args.duration <= 0:
         print("Capture duration must be positive")
         return 2
-    listener = SpeedwireListener(group=args.group, port=args.port)
+    listener = SpeedwireListener(group=args.group, port=args.port, interface=args.interface)
     try:
         listener.start()
         print(f"Listening on {args.group}:{args.port} for {args.duration:g}s")
