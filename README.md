@@ -13,13 +13,18 @@ been verified on the supported hardware.
 
 ## Development
 
-The core can be installed independently for development:
+The project uses [uv](https://docs.astral.sh/uv/) for fast, reproducible local
+environment management. Install uv, then run:
 
 ```bash
-python -m pip install -e '.[sma,dev]'
-pytest
-powermanager status --host 192.168.1.50
+uv sync --extra sma --extra dev
+uv run pytest
+uv run ruff check .
+uv run powermanager status --host 192.168.1.50
 ```
+
+The committed `uv.lock` keeps the development and SMA protocol dependencies
+reproducible. Use `uv lock --upgrade` deliberately when updating dependencies.
 
 The Home Assistant integration is located at `custom_components/powermanager` and is
 packaged directly by the release workflows for HACS.

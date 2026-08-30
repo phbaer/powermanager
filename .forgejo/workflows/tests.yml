@@ -1,0 +1,32 @@
+name: Tests
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "custom_components/powermanager/core/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "uv.lock"
+  pull_request:
+    paths:
+      - "custom_components/powermanager/core/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "uv.lock"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: node
+    steps:
+      - name: Check out source
+        uses: https://data.forgejo.org/actions/checkout@v6
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="$RUNNER_TEMP/uv" sh
+      - name: Run tests and lint
+        run: |
+          export PATH="$RUNNER_TEMP/uv:$PATH"
+          uv sync --locked --extra sma --extra dev
+          uv run pytest
+          uv run ruff check .

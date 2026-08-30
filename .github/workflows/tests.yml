@@ -1,0 +1,30 @@
+name: Tests
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "custom_components/powermanager/core/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "uv.lock"
+  pull_request:
+    paths:
+      - "custom_components/powermanager/core/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "uv.lock"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: latest
+          enable-cache: true
+      - run: uv sync --locked --extra sma --extra dev
+      - run: uv run pytest
+      - run: uv run ruff check .
