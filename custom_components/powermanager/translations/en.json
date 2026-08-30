@@ -40,7 +40,10 @@
       "battery_power": {"name": "Battery power"},
       "battery_current": {"name": "Battery current"},
       "battery_voltage": {"name": "Battery voltage"},
-      "discharge_soc_limit": {"name": "Discharge SoC limit"}
+      "discharge_soc_limit": {"name": "Discharge SoC limit"},
+      "grid_power": {"name": "Grid power"},
+      "pv_power": {"name": "PV power"},
+      "load_power": {"name": "Load power"}
     }
   }
 }

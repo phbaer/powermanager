@@ -84,6 +84,36 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda coordinator: coordinator.data.battery_state.discharge_limit_soc_percent,
     ),
+    PowerManagerSensorDescription(
+        key="grid_power",
+        translation_key="grid_power",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement="W",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.energy_state.grid.grid_power_w
+        if coordinator.data.energy_state.grid
+        else None,
+    ),
+    PowerManagerSensorDescription(
+        key="pv_power",
+        translation_key="pv_power",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement="W",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.energy_state.grid.pv_power_w
+        if coordinator.data.energy_state.grid
+        else None,
+    ),
+    PowerManagerSensorDescription(
+        key="load_power",
+        translation_key="load_power",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement="W",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.energy_state.grid.load_power_w
+        if coordinator.data.energy_state.grid
+        else None,
+    ),
 )
 
 
