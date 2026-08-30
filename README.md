@@ -30,6 +30,11 @@ reproducible. Use `uv lock --upgrade` deliberately when updating dependencies.
 The Home Assistant integration is located at `custom_components/powermanager` and is
 packaged directly by the release workflows for HACS.
 
+The planned control architecture and declarative rule format are documented in
+[`docs/knowledge/control-plan.md`](docs/knowledge/control-plan.md). Control remains
+disabled until its simulation, safety validation, watchdog, and hardware-specific
+write adapter are complete.
+
 The polling interval can be adjusted from the integration's Home Assistant options
 flow (5–300 seconds). Connection details remain in the config entry and all device
 communication remains read-only.

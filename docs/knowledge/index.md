@@ -7,6 +7,7 @@ entries:
   - architecture.md
   - implementation.md
   - roadmap.md
+  - control-plan.md
 ---
 
 # PowerManager
@@ -20,3 +21,4 @@ telemetry providers are optional.
 - [Architecture](architecture.md) - Runtime layers and backend/provider boundaries.
 - [Implementation](implementation.md) - What is implemented and how to operate it.
 - [Roadmap](roadmap.md) - Open work and safety gates.
+- [Control plan](control-plan.md) - Control infrastructure and declarative rules.
