@@ -11,7 +11,7 @@ import argparse
 import socket
 import sys
 
-SMA_SIGNATURE = bytes.fromhex("534d4100000402a000000001000200000001")
+SMA_SIGNATURE = bytes.fromhex("534d4100000402a0")
 
 
 def parse_args() -> argparse.Namespace:

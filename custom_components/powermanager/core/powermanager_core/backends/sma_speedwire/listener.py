@@ -17,8 +17,8 @@ from datetime import UTC, datetime
 DEFAULT_MULTICAST_GROUP = "239.12.255.254"
 DEFAULT_MULTICAST_PORT = 9522
 
-# SMA's documented Speedwire discovery response signature (first 18 bytes).
-SMA_DISCOVERY_SIGNATURE = bytes.fromhex("534d4100000402a000000001000200000001")
+# Common SMA Speedwire telegram header: ID string, length, and Tag0 (0x02A0).
+SMA_FRAME_PREFIX = bytes.fromhex("534d4100000402a0")
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,7 +32,7 @@ class SpeedwireFrame:
 
 def is_sma_frame(payload: bytes) -> bool:
     """Return whether a datagram starts with SMA's known protocol signature."""
-    return payload.startswith(SMA_DISCOVERY_SIGNATURE)
+    return payload.startswith(SMA_FRAME_PREFIX)
 
 
 class SpeedwireListener:
