@@ -1,0 +1,40 @@
+---
+type: Architecture
+title: PowerManager architecture
+description: Layered design separating battery backends, telemetry providers, and Home Assistant.
+tags: [architecture, modularity, safety]
+status: stable
+---
+
+# Runtime layers
+
+```text
+Home Assistant integration
+  config flow · coordinator · sensors · diagnostics
+             │
+             ├── HA entity telemetry adapter (optional)
+             │
+Reusable Python core
+  BatteryBackend · GridTelemetryProvider · normalized models
+             │
+             ├── SMA Sunny Island Modbus TCP (required battery backend)
+             └── SMA Speedwire (optional grid provider)
+```
+
+The core has no Home Assistant dependency. It exposes normalized `BatteryState`,
+`GridState`, and `EnergyState` models. Implementations of
+`GridTelemetryProvider` may live in the Home Assistant layer or in independent
+network backends.
+
+## Safety boundary
+
+Version 0.1 is read-only. No Modbus write method, control service, or relay can
+change inverter settings. Any future write backend must be explicitly enabled,
+time-limited, and fail-safe.
+
+## Deployment modes
+
+- Same LAN: Home Assistant or a collector joins Speedwire multicast directly.
+- Routed/VPN: a LAN-side relay forwards validated frames as unicast UDP.
+- ESPHome meters: the HA adapter reads existing numeric entities; Speedwire is
+  unnecessary.
