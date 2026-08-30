@@ -28,6 +28,6 @@ packaged directly by the release workflows for HACS.
 
 | Backend | Status |
 | --- | --- |
-| SMA Sunny Island Modbus TCP | Read-only identity validation; measurement register map pending hardware/documentation verification |
+| SMA Sunny Island Modbus TCP | Read-only identity and battery measurements verified against an SI4.4M-12 |
 | SMA Sunny Home Manager / Speedwire | Planned passive telemetry provider |
 | Active battery control | Not implemented |

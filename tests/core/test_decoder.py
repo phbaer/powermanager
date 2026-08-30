@@ -30,7 +30,7 @@ class RegisterDecoderTest(unittest.TestCase):
         )
 
     def test_documents_to_pdu_address_conversion(self) -> None:
-        self.assertEqual(definition(RegisterDataType.U32).pdu_address, 52)
+        self.assertEqual(definition(RegisterDataType.U32).pdu_address, 30053)
 
     def test_rejects_short_reads(self) -> None:
         with self.assertRaises(RegisterDecodeError):

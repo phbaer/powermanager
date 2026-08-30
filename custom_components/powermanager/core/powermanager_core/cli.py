@@ -34,7 +34,12 @@ async def _status(args: argparse.Namespace) -> int:
     print(info.model or "SMA Sunny Island")
     print(f"Device type:      {info.device_type}")
     print(f"Communication:   {state.communication_state}")
-    print("Measurements:    pending register-map verification")
+    print(f"Operating state: {state.operating_state}")
+    print(f"Battery SoC:      {state.battery_soc_percent} %")
+    print(f"Battery power:    {state.battery_power_w} W")
+    print(f"Battery current:  {state.battery_current_a} A")
+    print(f"Battery voltage:  {state.battery_voltage_v} V")
+    print(f"Discharge floor:  {state.discharge_limit_soc_percent} % SoC")
     return 0
 
 

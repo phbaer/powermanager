@@ -31,8 +31,9 @@ class RegisterDataType(StrEnum):
 class RegisterDefinition:
     """A typed register definition.
 
-    ``address`` is the one-based address printed in vendor documentation. Modbus
-    clients require the zero-based PDU address provided by :attr:`pdu_address`.
+    SMA assignment tables use ``address`` directly as the register offset accepted
+    by its Modbus server. It is therefore intentionally not converted using the
+    usual 3xxxx/4xxxx table prefix convention.
     """
 
     key: str
@@ -49,8 +50,7 @@ class RegisterDefinition:
 
     @property
     def pdu_address(self) -> int:
-        """Return the zero-based address accepted by a Modbus client."""
-        base = 30001 if self.table is RegisterTable.INPUT else 40001
-        if self.address < base:
-            raise ValueError(f"{self.address} is not a valid {self.table} register address")
-        return self.address - base
+        """Return the address accepted by an SMA Modbus client."""
+        if self.address < 0:
+            raise ValueError(f"{self.address} is not a valid register address")
+        return self.address

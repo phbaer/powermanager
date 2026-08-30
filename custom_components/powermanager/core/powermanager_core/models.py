@@ -38,7 +38,7 @@ class BatteryState:
     battery_voltage_v: float | None = None
     battery_current_a: float | None = None
     charge_limit_w: float | None = None
-    discharge_limit_w: float | None = None
+    discharge_limit_soc_percent: float | None = None
     operating_state: str | None = None
     communication_state: CommunicationState = CommunicationState.UNKNOWN
 

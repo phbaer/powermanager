@@ -24,9 +24,10 @@ class FakeTransport:
         self.connected = False
 
     async def read_input_registers(self, address: int, count: int) -> Sequence[int]:
-        assert address == 52
         assert count == 2
-        return self.registers
+        if address == 30053:
+            return self.registers
+        return [0, 307]
 
 
 class SunnyIslandTest(unittest.TestCase):

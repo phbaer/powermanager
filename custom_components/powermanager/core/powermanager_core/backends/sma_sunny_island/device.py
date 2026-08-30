@@ -14,16 +14,28 @@ from ...modbus.decoder import decode_registers
 from ...modbus.registers import RegisterDataType, RegisterDefinition, RegisterTable
 from ...models import BatteryState, CommunicationState, DeviceInfo
 
-# The device type is the only currently implemented SMA register. It is kept
-# deliberately small until every measurement register is checked against the
-# SI4.4M-12 documentation and a physical device.
 DEVICE_TYPE = RegisterDefinition(
     key="device_type",
     address=30053,
     table=RegisterTable.INPUT,
     data_type=RegisterDataType.U32,
 )
+STATUS = RegisterDefinition("status", 30201, RegisterTable.INPUT, RegisterDataType.U32)
+BATTERY_SOC = RegisterDefinition("battery_soc", 30845, RegisterTable.INPUT, RegisterDataType.U32)
+BATTERY_POWER = RegisterDefinition(
+    "battery_power", 30775, RegisterTable.INPUT, RegisterDataType.S32
+)
+BATTERY_CURRENT = RegisterDefinition(
+    "battery_current", 30843, RegisterTable.INPUT, RegisterDataType.S32, scale=0.001
+)
+BATTERY_VOLTAGE = RegisterDefinition(
+    "battery_voltage", 30851, RegisterTable.INPUT, RegisterDataType.U32, scale=0.01
+)
+DISCHARGE_SOC_LIMIT = RegisterDefinition(
+    "discharge_soc_limit", 31009, RegisterTable.INPUT, RegisterDataType.U32
+)
 SUPPORTED_DEVICE_TYPES: dict[int, str] = {9332: "Sunny Island SI4.4M-12"}
+STATUS_NAMES = {35: "Error", 303: "Off", 307: "Ok", 455: "Warning"}
 
 
 class InputRegisterTransport(Protocol):
@@ -90,16 +102,34 @@ class SunnyIslandClient(BatteryBackend):
         )
 
     async def read_battery_state(self) -> BatteryState:
-        """Return the safely available monitor-only state.
-
-        Measurement registers are intentionally not queried until their SI4.4M-12
-        address, data type, scaling, and sentinel values have been verified.
-        """
+        """Read the documented SI4.4M-12 battery measurements."""
+        values: dict[str, float | int | None] = {}
+        for register in (
+            STATUS,
+            BATTERY_SOC,
+            BATTERY_POWER,
+            BATTERY_CURRENT,
+            BATTERY_VOLTAGE,
+            DISCHARGE_SOC_LIMIT,
+        ):
+            raw = await self._transport.read_input_registers(register.pdu_address, register.width)
+            values[register.key] = decode_registers(raw, register)
         return BatteryState(
             timestamp=datetime.now(UTC),
+            battery_soc_percent=_as_float(values["battery_soc"]),
+            battery_power_w=_as_float(values["battery_power"]),
+            battery_voltage_v=_as_float(values["battery_voltage"]),
+            battery_current_a=_as_float(values["battery_current"]),
+            discharge_limit_soc_percent=_as_float(values["discharge_soc_limit"]),
+            operating_state=STATUS_NAMES.get(values["status"], f"Unknown ({values['status']})"),
             communication_state=CommunicationState.ONLINE,
         )
 
     async def read_state(self) -> BatteryState:
         """Convenience alias for the standalone core API."""
         return await self.read_battery_state()
+
+
+def _as_float(value: float | int | None) -> float | None:
+    """Normalize decoded numeric values for the domain model."""
+    return float(value) if value is not None else None
