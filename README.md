@@ -21,6 +21,7 @@ uv sync --extra sma --extra dev
 uv run pytest
 uv run ruff check .
 uv run powermanager status --host 192.168.1.50
+uv run powermanager speedwire-capture --duration 60 --show-hex
 ```
 
 The committed `uv.lock` keeps the development and SMA protocol dependencies
@@ -32,6 +33,9 @@ packaged directly by the release workflows for HACS.
 The polling interval can be adjusted from the integration's Home Assistant options
 flow (5–300 seconds). Connection details remain in the config entry and all device
 communication remains read-only.
+
+`speedwire-capture` passively prints validated SMA multicast frames for protocol
+analysis; it does not transmit packets or decode unverified measurement offsets.
 
 ## Supported backend status
 
