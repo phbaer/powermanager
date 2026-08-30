@@ -17,6 +17,17 @@
       "unknown": "Unexpected error"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Polling settings",
+        "description": "Choose how often PowerManager reads the Sunny Island.",
+        "data": {
+          "scan_interval": "Polling interval (seconds)"
+        }
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "device_type": {"name": "Device type"},
