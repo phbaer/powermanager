@@ -11,8 +11,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    CONF_GRID_POWER_ENTITY,
     CONF_HOST,
+    CONF_LOAD_POWER_ENTITY,
     CONF_PORT,
+    CONF_PV_POWER_ENTITY,
     CONF_SCAN_INTERVAL,
     CONF_UNIT_ID,
     DEFAULT_SCAN_INTERVAL_SECONDS,
@@ -24,6 +27,7 @@ from .core.powermanager_core.backends.sma_sunny_island import (
 )
 from .core.powermanager_core.exceptions import PowerManagerError
 from .core.powermanager_core.models import BatteryState, DeviceInfo, EnergyState
+from .ha_entity_provider import HomeAssistantEntityGridProvider
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,6 +59,12 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             port=entry.data[CONF_PORT],
             unit_id=entry.data[CONF_UNIT_ID],
         )
+        self._grid_provider = HomeAssistantEntityGridProvider(
+            hass,
+            entry.options.get(CONF_GRID_POWER_ENTITY),
+            entry.options.get(CONF_PV_POWER_ENTITY),
+            entry.options.get(CONF_LOAD_POWER_ENTITY),
+        )
 
     async def _async_update_data(self) -> PowerManagerData:
         """Read state through a new TCP connection, allowing safe reconnects."""
@@ -67,8 +77,15 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         except Exception as error:
             raise UpdateFailed(f"Unexpected PowerManager update failure: {error}") from error
 
+        grid_state = (
+            await self._grid_provider.read_grid_state()
+            if self._grid_provider.configured
+            else None
+        )
         return PowerManagerData(
             device_info=device_info,
             battery_state=battery_state,
-            energy_state=EnergyState(timestamp=battery_state.timestamp, battery=battery_state),
+            energy_state=EnergyState(
+                timestamp=battery_state.timestamp, battery=battery_state, grid=grid_state
+            ),
         )

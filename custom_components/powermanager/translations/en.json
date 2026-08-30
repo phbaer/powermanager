@@ -23,7 +23,10 @@
         "title": "Polling settings",
         "description": "Choose how often PowerManager reads the Sunny Island.",
         "data": {
-          "scan_interval": "Polling interval (seconds)"
+          "scan_interval": "Polling interval (seconds)",
+          "grid_power_entity": "Grid power entity",
+          "pv_power_entity": "PV power entity",
+          "load_power_entity": "Load power entity"
         }
       }
     }

@@ -10,8 +10,11 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
+    CONF_GRID_POWER_ENTITY,
     CONF_HOST,
+    CONF_LOAD_POWER_ENTITY,
     CONF_PORT,
+    CONF_PV_POWER_ENTITY,
     CONF_SCAN_INTERVAL,
     CONF_UNIT_ID,
     DEFAULT_PORT,
@@ -101,7 +104,19 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 vol.Required(CONF_SCAN_INTERVAL, default=current_interval): vol.All(
                     vol.Coerce(int),
                     vol.Range(min=MIN_SCAN_INTERVAL_SECONDS, max=MAX_SCAN_INTERVAL_SECONDS),
-                )
+                ),
+                vol.Optional(
+                    CONF_GRID_POWER_ENTITY,
+                    default=self._config_entry.options.get(CONF_GRID_POWER_ENTITY, ""),
+                ): str,
+                vol.Optional(
+                    CONF_PV_POWER_ENTITY,
+                    default=self._config_entry.options.get(CONF_PV_POWER_ENTITY, ""),
+                ): str,
+                vol.Optional(
+                    CONF_LOAD_POWER_ENTITY,
+                    default=self._config_entry.options.get(CONF_LOAD_POWER_ENTITY, ""),
+                ): str,
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)
