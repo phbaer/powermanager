@@ -4,13 +4,13 @@ on:
   push:
     branches: ["**"]
     paths:
-      - "custom_components/powermanager/core/**"
+      - "custom_components/powermanager/**"
       - "tests/**"
       - "pyproject.toml"
       - "uv.lock"
   pull_request:
     paths:
-      - "custom_components/powermanager/core/**"
+      - "custom_components/powermanager/**"
       - "tests/**"
       - "pyproject.toml"
       - "uv.lock"
