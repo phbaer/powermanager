@@ -5,10 +5,13 @@ from __future__ import annotations
 import argparse
 import asyncio
 import time
+from datetime import UTC, datetime
 
 from .backends.sma_speedwire import SpeedwireListener
 from .backends.sma_sunny_island import SunnyIslandClient, SunnyIslandConnectionConfig
+from .control import ControlRuntime, load_rules
 from .exceptions import PowerManagerError
+from .models import BatteryState, CommunicationState, EnergyState, GridState
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -29,6 +32,13 @@ def build_parser() -> argparse.ArgumentParser:
     capture.add_argument(
         "--interface", default="0.0.0.0", help="Local interface/address for multicast membership"
     )
+    simulate = subcommands.add_parser(
+        "simulate", help="Evaluate YAML rules without hardware access"
+    )
+    simulate.add_argument("--rules", required=True, help="YAML rule file")
+    simulate.add_argument("--grid-power", type=float, help="Grid power in watts")
+    simulate.add_argument("--battery-soc", type=float, default=50.0, help="Battery SoC percent")
+    simulate.add_argument("--enabled", action="store_true", help="Enable policy evaluation")
     capture.add_argument("--show-hex", action="store_true", help="Print full frame payloads as hex")
     return parser
 
@@ -83,6 +93,34 @@ async def _speedwire_capture(args: argparse.Namespace) -> int:
     return 0
 
 
+def _simulate(args: argparse.Namespace) -> int:
+    try:
+        rules = load_rules(args.rules)
+    except (OSError, ValueError, RuntimeError) as error:
+        print(f"Unable to load rules: {error}")
+        return 2
+    now = datetime.now(UTC)
+    energy = EnergyState(
+        timestamp=now,
+        battery=BatteryState(
+            timestamp=now,
+            battery_soc_percent=args.battery_soc,
+            communication_state=CommunicationState.ONLINE,
+        ),
+        grid=GridState(timestamp=now, grid_power_w=args.grid_power)
+        if args.grid_power is not None
+        else None,
+    )
+    decision = asyncio.run(ControlRuntime(rules).cycle(energy, at=now, enabled=args.enabled))
+    print(f"Accepted:       {decision.accepted}")
+    print(f"Reason:         {decision.reason or '-'}")
+    print(f"Restore normal: {decision.restore_normal}")
+    if decision.intent is not None:
+        print(f"Rule:           {decision.intent.rule_id}")
+        print(f"Target power:   {decision.intent.target_power_w} W")
+    return 0
+
+
 def main() -> int:
     """Run the CLI."""
     args = build_parser().parse_args()
@@ -90,4 +128,6 @@ def main() -> int:
         return asyncio.run(_status(args))
     if args.command == "speedwire-capture":
         return asyncio.run(_speedwire_capture(args))
+    if args.command == "simulate":
+        return _simulate(args)
     raise AssertionError(f"Unhandled command: {args.command}")
