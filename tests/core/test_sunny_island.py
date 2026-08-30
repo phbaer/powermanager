@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Sequence
 import unittest
+from collections.abc import Sequence
 
 from powermanager_core.backends.sma_sunny_island import (
     SunnyIslandClient,

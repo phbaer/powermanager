@@ -9,10 +9,10 @@ from typing import Protocol
 
 from ...contracts import BatteryBackend
 from ...exceptions import UnsupportedDeviceError
-from ...models import BatteryState, CommunicationState, DeviceInfo
 from ...modbus.client import PymodbusTcpReadOnlyTransport
 from ...modbus.decoder import decode_registers
 from ...modbus.registers import RegisterDataType, RegisterDefinition, RegisterTable
+from ...models import BatteryState, CommunicationState, DeviceInfo
 
 # The device type is the only currently implemented SMA register. It is kept
 # deliberately small until every measurement register is checked against the
@@ -65,7 +65,7 @@ class SunnyIslandClient(BatteryBackend):
             config.host, config.port, config.unit_id, config.timeout_seconds
         )
 
-    async def __aenter__(self) -> "SunnyIslandClient":
+    async def __aenter__(self) -> SunnyIslandClient:
         await self._transport.connect()
         return self
 
