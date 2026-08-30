@@ -1,0 +1,26 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Sunny Island",
+        "description": "PowerManager only reads the device during setup.",
+        "data": {
+          "host": "Host or IP address",
+          "port": "Modbus TCP port",
+          "unit_id": "Modbus unit ID"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the Sunny Island",
+      "unsupported_device": "This SMA device is not a supported Sunny Island",
+      "unknown": "Unexpected error"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "device_type": {"name": "Device type"},
+      "communication_state": {"name": "Communication state"}
+    }
+  }
+}

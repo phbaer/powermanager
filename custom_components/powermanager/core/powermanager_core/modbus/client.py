@@ -29,7 +29,12 @@ class PymodbusTcpReadOnlyTransport:
             raise BackendConnectionError("pymodbus is not installed") from error
 
         client = AsyncModbusTcpClient(self._host, port=self._port, timeout=self._timeout)
-        if not await client.connect():
+        try:
+            connected = await client.connect()
+        except Exception as error:  # pymodbus surfaces transport-specific exceptions.
+            message = f"Unable to connect to {self._host}:{self._port}: {error}"
+            raise BackendConnectionError(message) from error
+        if not connected:
             raise BackendConnectionError(f"Unable to connect to {self._host}:{self._port}")
         self._client = client
 

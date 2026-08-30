@@ -74,7 +74,9 @@ class SunnyIslandClient(BatteryBackend):
 
     async def get_device_info(self) -> DeviceInfo:
         """Read and validate the device type using only an input-register request."""
-        registers = await self._transport.read_input_registers(DEVICE_TYPE.pdu_address, DEVICE_TYPE.width)
+        registers = await self._transport.read_input_registers(
+            DEVICE_TYPE.pdu_address, DEVICE_TYPE.width
+        )
         device_type = decode_registers(registers, DEVICE_TYPE)
         if not isinstance(device_type, int) or device_type not in SUPPORTED_DEVICE_TYPES:
             raise UnsupportedDeviceError(f"Unsupported SMA device type: {device_type!r}")

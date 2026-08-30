@@ -8,7 +8,9 @@ from ..exceptions import RegisterDecodeError
 from .registers import RegisterDataType, RegisterDefinition
 
 
-def decode_registers(registers: Sequence[int], definition: RegisterDefinition) -> float | int | None:
+def decode_registers(
+    registers: Sequence[int], definition: RegisterDefinition
+) -> float | int | None:
     """Decode one definition from consecutive 16-bit registers.
 
     SMA invalid sentinels are compared before scaling and always become ``None``.

@@ -4,7 +4,10 @@ import asyncio
 from collections.abc import Sequence
 import unittest
 
-from powermanager_core.backends.sma_sunny_island import SunnyIslandClient, SunnyIslandConnectionConfig
+from powermanager_core.backends.sma_sunny_island import (
+    SunnyIslandClient,
+    SunnyIslandConnectionConfig,
+)
 from powermanager_core.exceptions import UnsupportedDeviceError
 from powermanager_core.models import CommunicationState
 
