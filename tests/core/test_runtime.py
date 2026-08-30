@@ -1,0 +1,30 @@
+import asyncio
+from datetime import UTC, datetime, timedelta
+
+from powermanager_core.control import ControlRule, ControlRuntime, ControlWatchdog, RuleConditions
+from powermanager_core.models import BatteryState, CommunicationState, EnergyState, GridState
+
+
+def test_runtime_records_accepted_simulation_cycle() -> None:
+    at = datetime(2026, 1, 1, 12, tzinfo=UTC)
+    energy = EnergyState(
+        timestamp=at,
+        battery=BatteryState(timestamp=at, communication_state=CommunicationState.ONLINE),
+        grid=GridState(timestamp=at, grid_power_w=-800),
+    )
+    runtime = ControlRuntime(
+        (ControlRule("surplus", 1, RuleConditions(grid_power_below_w=-500), 1500),)
+    )
+    decision = asyncio.run(runtime.cycle(energy, at=at, enabled=True))
+    assert decision.accepted
+    assert decision.simulation_record is not None
+
+
+def test_runtime_requires_heartbeat_before_cycle() -> None:
+    at = datetime(2026, 1, 1, 12, tzinfo=UTC)
+    energy = EnergyState(timestamp=at, battery=BatteryState(timestamp=at))
+    watchdog = ControlWatchdog()
+    watchdog.feed(at)
+    runtime = ControlRuntime((), watchdog=watchdog)
+    decision = asyncio.run(runtime.cycle(energy, at=at + timedelta(seconds=31), enabled=False))
+    assert decision.restore_normal
