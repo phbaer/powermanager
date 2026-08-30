@@ -37,6 +37,14 @@ communication remains read-only.
 `speedwire-capture` passively prints validated SMA multicast frames for protocol
 analysis; it does not transmit packets or decode unverified measurement offsets.
 
+### Speedwire protocol status
+
+A live capture from a Sunny Home Manager on the local LAN produced 608-byte
+telegrams from `10.0.1.192` to `239.12.255.254:9522`. The payload contains SMA's
+documented `0x6069` energy-meter protocol. The protocol decoder remains pending
+until the encapsulation and record alignment are covered by a reproducible fixture;
+raw frames are therefore not converted into grid or PV values yet.
+
 ## Supported backend status
 
 | Backend | Status |
