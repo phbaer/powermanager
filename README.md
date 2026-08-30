@@ -37,6 +37,17 @@ communication remains read-only.
 `speedwire-capture` passively prints validated SMA multicast frames for protocol
 analysis; it does not transmit packets or decode unverified measurement offsets.
 
+For a remote Home Assistant host, `scripts/speedwire-relay.py` can run on a LAN-side
+machine and forward validated frames over unicast UDP:
+
+```bash
+python3 scripts/speedwire-relay.py --destination-host 10.0.12.2
+```
+
+The receiving listener must be configured for the chosen unicast port (default
+`19522`). The relay is intentionally raw and read-only: it never sends anything to
+the SMA multicast group.
+
 ### Speedwire protocol status
 
 A live capture from a Sunny Home Manager on the local LAN produced 608-byte
