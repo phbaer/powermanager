@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 from .core.powermanager_core.models import CommunicationState, GridState
+from .core.powermanager_core.telemetry import normalize_power_state
 
 
 class HomeAssistantEntityGridProvider:
@@ -57,19 +58,6 @@ class HomeAssistantEntityGridProvider:
         if not entity_id:
             return None
         state = self._hass.states.get(entity_id)
-        if state is None or state.state in ("unknown", "unavailable"):
-            return None
-        last_updated = state.last_updated
-        if last_updated.tzinfo is None:
-            last_updated = last_updated.replace(tzinfo=UTC)
-        age = (datetime.now(UTC) - last_updated).total_seconds()
-        if age > self._max_age_seconds:
-            return None
-        try:
-            value = float(state.state)
-        except ValueError:
-            return None
-        unit = (state.attributes.get("unit_of_measurement") or "W").lower()
-        if unit in {"kw", "kilowatt", "kilowatts"}:
-            return value * 1000
-        return value
+        return normalize_power_state(
+            state, now=datetime.now(UTC), max_age_seconds=self._max_age_seconds
+        )
