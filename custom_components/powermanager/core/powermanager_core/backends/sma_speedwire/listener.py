@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import socket
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -94,3 +95,8 @@ class SpeedwireListener:
         if timeout is None:
             return await _receive()
         return await asyncio.wait_for(_receive(), timeout)
+
+    async def frames(self) -> AsyncIterator[SpeedwireFrame]:
+        """Yield validated frames until the listener is closed or cancelled."""
+        while self._socket is not None:
+            yield await self.receive()
