@@ -38,10 +38,12 @@ def validate_intent(
         return False, "charge target exceeds configured limit"
     if intent.target_power_w < -config.max_discharge_power_w:
         return False, "discharge target exceeds configured limit"
-    if (
-        intent.target_power_w < 0
-        and energy.battery.battery_soc_percent is not None
-        and energy.battery.battery_soc_percent <= config.minimum_soc_percent
-    ):
-        return False, "battery is at or below minimum SoC"
+    if intent.target_power_w < 0 and energy.battery.battery_soc_percent is not None:
+        dynamic_floor = energy.battery.discharge_limit_soc_percent
+        effective_floor = max(
+            config.minimum_soc_percent,
+            dynamic_floor if dynamic_floor is not None else config.minimum_soc_percent,
+        )
+        if energy.battery.battery_soc_percent <= effective_floor:
+            return False, "battery is at or below effective minimum SoC"
     return True, None
