@@ -36,3 +36,13 @@ rules:
     then:
       target_power_w: -1000
     hold_seconds: 600
+
+  # Dynamic-tariff example: charge when the market price is below 0.20 per kWh.
+  - id: charge-cheap-market
+    priority: 80
+    when:
+      price_below_per_kwh: 0.20
+      battery_soc_below_percent: 85
+    then:
+      target_power_w: 1000
+    hold_seconds: 900
