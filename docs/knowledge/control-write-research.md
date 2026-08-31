@@ -83,6 +83,29 @@ the target SI and record firmware/mode: `30053`, `30201`, `33003`, `31009`,
 installation is single-phase, three-phase single-cluster, or multicluster;
 SMA explicitly excludes Modbus setpoints for multicluster systems.
 
+## Read-only snapshot of the connected installation
+
+On 2026-08-31, a read-only Modbus TCP query to `10.0.1.240` (unit ID 3)
+returned:
+
+| Register | Value | Interpretation |
+| --- | ---: | --- |
+| `30053` | `9332` | SI4.4M-12 |
+| `30201` | `307` | status OK |
+| `31009` | `30` | dynamic discharge floor, 30% SoC |
+| `33003` | `235` | parallel-grid operation |
+| `40210` | `1079` | external active-power setpoint mode |
+| `41193` | `2507` | apply fallback values |
+| `41195` | `300` | 300-second command timeout |
+| `44037` | `6000 W` | fallback maximum active power (FIX2) |
+
+The write-only setpoint registers (`40149`, `40151`, `44039`, `44041`) returned
+sentinel/invalid-looking values when read; this is expected for write-only
+registers and is not evidence that a command was accepted. No write operation
+was performed. The snapshot confirms that the installation is already prepared
+for external setpoints, but the active owner (Home Manager versus another
+controller) and the physical phase/cluster topology still need confirmation.
+
 Then validate, with a physical emergency stop available: bounded setpoint,
 heartbeat loss, timeout fallback, TCP disconnect, inverter restart, and
 restoration of the original operating mode. No production write should be
