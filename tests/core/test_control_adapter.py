@@ -61,3 +61,19 @@ def test_mode_and_bounds_use_documented_registers() -> None:
         (44041, [0xFFFF, 0xEC78], 3),
         (44039, [0, 7500], 3),
     ]
+
+
+def test_failsafe_configuration_is_validated_and_guarded() -> None:
+    transport = FakeTransport()
+    adapter = SunnyIslandControlAdapter(
+        transport,
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+    )
+    asyncio.run(adapter.configure_failsafe(timeout_seconds=300, fallback_power_w=6000))
+    assert transport.calls == [
+        (41193, [0, 2507], 3),
+        (41195, [0, 300], 3),
+        (44037, [9, 10176], 3),
+    ]
+    with pytest.raises(ControlWriteError):
+        asyncio.run(adapter.configure_failsafe(timeout_seconds=0, fallback_power_w=0))

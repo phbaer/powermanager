@@ -7,6 +7,7 @@ controller ownership check; constructing it never writes to the inverter.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -91,6 +92,16 @@ class SunnyIslandControlAdapter:
         await self._write_s32(44041, minimum_percent, scale=100)
         await self._write_s32(44039, maximum_percent, scale=100)
 
+    async def configure_failsafe(self, *, timeout_seconds: int, fallback_power_w: float) -> None:
+        """Configure apply-fallback behavior and timeout on the inverter."""
+        if not 1 <= timeout_seconds <= 1800:
+            raise ControlWriteError("fallback timeout must be between 1 and 1800 seconds")
+        if not 0 <= fallback_power_w <= 10000:
+            raise ControlWriteError("fallback power must be between 0 and 10000 W")
+        await self._write_u32(41193, 2507)
+        await self._write_u32(41195, timeout_seconds)
+        await self._write_s32(44037, fallback_power_w, scale=100)
+
     async def _write_u32(self, address: int, value: int) -> None:
         if not self._guard.allowed:
             raise ControlWriteError("active control is locked")
@@ -110,3 +121,27 @@ class SunnyIslandControlAdapter:
         await self._transport.write_holding_registers(
             address, [(encoded >> 16) & 0xFFFF, encoded & 0xFFFF], self._unit_id
         )
+
+
+class ControlCommandSession:
+    """Maintain a cyclic setpoint heartbeat until stopped by the caller."""
+
+    def __init__(
+        self,
+        adapter: SunnyIslandControlAdapter,
+        *,
+        interval_seconds: float = 0.25,
+    ) -> None:
+        if not 0 < interval_seconds <= 0.5:
+            raise ValueError("heartbeat interval must be greater than 0 and at most 0.5 seconds")
+        self._adapter = adapter
+        self._interval = interval_seconds
+
+    async def run(self, power_w: float, stop: asyncio.Event) -> None:
+        """Send setpoints until ``stop`` is set; propagate transport failures."""
+        while not stop.is_set():
+            await self._adapter.set_active_power(power_w)
+            try:
+                await asyncio.wait_for(stop.wait(), timeout=self._interval)
+            except TimeoutError:
+                continue
