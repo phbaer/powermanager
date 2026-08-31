@@ -64,3 +64,7 @@ enable switch and a valid safety configuration.
 - A watchdog restores normal inverter behavior after missed heartbeats.
 - Manual override and emergency stop always supersede rules.
 - Production execution requires hardware-specific register verification.
+
+The adapter, heartbeat, restore-normal operation, and read-only preflight are now
+implemented. The remaining gate is physical commissioning with confirmed control
+ownership and an emergency-stop procedure.

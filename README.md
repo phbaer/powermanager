@@ -6,10 +6,10 @@ Island used in older Viessmann Vitocharge systems.
 
 ## Safety status
 
-`0.1.0` is **monitor only**. It performs read-only Modbus requests and contains no
-Modbus write operation or battery-control command. Active control will not be added
-until the exact Sunny Island register semantics and controller-failure behaviour have
-been verified on the supported hardware.
+`0.1.0` is **monitor only**. A guarded write adapter, heartbeat, restore-normal
+path, and read-only commissioning preflight are present, but no production
+control is enabled. Active control remains gated on ownership and failure-mode
+validation on the supported hardware.
 
 ## Development
 
@@ -33,8 +33,8 @@ packaged directly by the release workflows for HACS.
 
 The planned control architecture and declarative rule format are documented in
 [`docs/knowledge/control-plan.md`](docs/knowledge/control-plan.md). Control remains
-disabled until its simulation, safety validation, watchdog, and hardware-specific
-write adapter are complete.
+disabled until its simulation, safety validation, watchdog, hardware-specific
+write adapter, and physical commissioning are complete.
 
 The polling interval can be adjusted from the integration's Home Assistant options
 flow (5–300 seconds). Connection details remain in the config entry and all device

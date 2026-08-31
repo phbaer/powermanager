@@ -28,9 +28,9 @@ network backends.
 
 ## Safety boundary
 
-Version 0.1 is read-only. No Modbus write method, control service, or relay can
-change inverter settings. Any future write backend must be explicitly enabled,
-time-limited, and fail-safe.
+Version 0.1 is monitor-only by default. A guarded Modbus write adapter exists for
+commissioning, but no Home Assistant path enables it. Any future write backend
+must be explicitly enabled, time-limited, ownership-checked, and fail-safe.
 
 ## Deployment modes
 
