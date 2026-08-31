@@ -7,6 +7,7 @@ from .listener import (
     SpeedwireListener,
     is_sma_frame,
 )
+from .ownership import ExternalControllerMonitor
 
 __all__ = [
     "DEFAULT_MULTICAST_GROUP",
@@ -14,4 +15,5 @@ __all__ = [
     "SpeedwireFrame",
     "SpeedwireListener",
     "is_sma_frame",
+    "ExternalControllerMonitor",
 ]

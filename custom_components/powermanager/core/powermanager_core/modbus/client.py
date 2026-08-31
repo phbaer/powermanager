@@ -58,3 +58,23 @@ class PymodbusTcpReadOnlyTransport:
         if result.isError() or not hasattr(result, "registers"):
             raise BackendConnectionError(f"Modbus device returned an error for address {address}")
         return result.registers
+
+    async def write_holding_registers(
+        self, address: int, values: list[int], unit_id: int
+    ) -> None:
+        """Write registers for the separately guarded control adapter.
+
+        This low-level method is intentionally not used by the read-only
+        SunnyIslandClient. Callers must place it behind an explicit control
+        guard and ownership check.
+        """
+        if self._client is None:
+            raise BackendConnectionError("Modbus client is not connected")
+        try:
+            result = await self._client.write_registers(
+                address, values, device_id=unit_id
+            )
+        except Exception as error:
+            raise BackendConnectionError(f"Modbus write failed: {error}") from error
+        if result.isError():
+            raise BackendConnectionError(f"Modbus device rejected write at address {address}")
