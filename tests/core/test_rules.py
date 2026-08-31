@@ -24,3 +24,26 @@ def test_load_rules_parses_typed_rule(tmp_path: Path) -> None:
     assert rule.rule_id == "surplus"
     assert rule.conditions.grid_power_below_w == -500
     assert rule.target_power_w == 1500
+
+
+def test_load_rules_rejects_negative_hold(tmp_path: Path) -> None:
+    path = tmp_path / "rules.yaml"
+    path.write_text(
+        "version: 1\nenabled: false\nrules:\n"
+        "  - id: bad\n    hold_seconds: -1\n    then: {target_power_w: 100}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="hold_seconds"):
+        load_rules(path)
+
+
+def test_load_rules_rejects_contradictory_soc(tmp_path: Path) -> None:
+    path = tmp_path / "rules.yaml"
+    path.write_text(
+        "version: 1\nenabled: false\nrules:\n"
+        "  - id: bad\n    when: {battery_soc_above_percent: 80, battery_soc_below_percent: 50}\n"
+        "    then: {target_power_w: 100}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="contradictory"):
+        load_rules(path)

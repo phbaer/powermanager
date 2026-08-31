@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from datetime import time
 from pathlib import Path
 from typing import Any
@@ -28,7 +29,7 @@ def load_rules(path: str | Path) -> tuple[ControlRule, ...]:
 
 
 def _parse_rule(raw: Any) -> ControlRule:
-    if not isinstance(raw, dict) or not isinstance(raw.get("id"), str):
+    if not isinstance(raw, dict) or not isinstance(raw.get("id"), str) or not raw["id"].strip():
         raise ValueError("each rule requires a string id")
     when = raw.get("when", {})
     action = raw.get("then", {})
@@ -41,7 +42,7 @@ def _parse_rule(raw: Any) -> ControlRule:
             raise ValueError(f"rule {raw['id']!r} between must contain two times")
         window = (_parse_time(between[0]), _parse_time(between[1]))
     try:
-        return ControlRule(
+        rule = ControlRule(
             rule_id=raw["id"],
             priority=int(raw.get("priority", 0)),
             conditions=RuleConditions(
@@ -60,12 +61,38 @@ def _parse_rule(raw: Any) -> ControlRule:
             target_power_w=float(action["target_power_w"]),
             hold_seconds=int(raw.get("hold_seconds", 0)),
         )
+        if rule.hold_seconds < 0:
+            raise ValueError("hold_seconds cannot be negative")
+        _validate_conditions(rule)
+        return rule
     except (KeyError, TypeError, ValueError) as error:
-        raise ValueError(f"rule {raw['id']!r} has invalid numeric fields") from error
+        raise ValueError(f"rule {raw['id']!r} has invalid fields: {error}") from error
 
 
 def _optional_float(value: Any) -> float | None:
-    return None if value is None else float(value)
+    if value is None:
+        return None
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("numeric values must be finite")
+    return number
+
+
+def _validate_conditions(rule: ControlRule) -> None:
+    """Reject contradictory or out-of-domain SoC/price conditions."""
+    conditions = rule.conditions
+    for threshold in (conditions.battery_soc_below_percent, conditions.battery_soc_above_percent):
+        if threshold is not None and not 0 <= threshold <= 100:
+            raise ValueError("battery SoC thresholds must be between 0 and 100")
+    if (
+        conditions.battery_soc_below_percent is not None
+        and conditions.battery_soc_above_percent is not None
+        and conditions.battery_soc_above_percent >= conditions.battery_soc_below_percent
+    ):
+        raise ValueError("battery SoC thresholds are contradictory")
+    for threshold in (conditions.price_below_per_kwh, conditions.price_above_per_kwh):
+        if threshold is not None and threshold < 0:
+            raise ValueError("price thresholds cannot be negative")
 
 
 def _parse_time(value: Any) -> time:
