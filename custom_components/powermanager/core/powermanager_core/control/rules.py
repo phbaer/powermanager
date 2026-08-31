@@ -60,9 +60,10 @@ def _parse_rule(raw: Any) -> ControlRule:
             ),
             target_power_w=float(action["target_power_w"]),
             hold_seconds=int(raw.get("hold_seconds", 0)),
+            cooldown_seconds=int(raw.get("cooldown_seconds", 0)),
         )
-        if rule.hold_seconds < 0:
-            raise ValueError("hold_seconds cannot be negative")
+        if rule.hold_seconds < 0 or rule.cooldown_seconds < 0:
+            raise ValueError("hold_seconds and cooldown_seconds cannot be negative")
         _validate_conditions(rule)
         return rule
     except (KeyError, TypeError, ValueError) as error:

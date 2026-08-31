@@ -51,3 +51,16 @@ def test_runtime_holds_accepted_intent_until_hold_period_expires() -> None:
     held = asyncio.run(runtime.cycle(no_surplus, at=at + timedelta(seconds=10), enabled=True))
     assert held.accepted
     assert held.intent is not None and held.intent.rule_id == "surplus"
+
+
+def test_runtime_applies_rule_cooldown() -> None:
+    at = datetime(2026, 1, 1, 12, tzinfo=UTC)
+    energy = EnergyState(
+        timestamp=at,
+        battery=BatteryState(timestamp=at, communication_state=CommunicationState.ONLINE),
+    )
+    rule = ControlRule("always", 1, RuleConditions(), 100, cooldown_seconds=60)
+    runtime = ControlRuntime((rule,))
+    assert asyncio.run(runtime.cycle(energy, at=at, enabled=True)).accepted
+    blocked = asyncio.run(runtime.cycle(energy, at=at + timedelta(seconds=10), enabled=True))
+    assert not blocked.accepted and blocked.reason == "rule cooldown active"

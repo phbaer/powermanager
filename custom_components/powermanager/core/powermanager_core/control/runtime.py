@@ -38,6 +38,7 @@ class ControlRuntime:
         self._actuator = actuator or SimulationActuator()
         self._watchdog = watchdog or ControlWatchdog()
         self._held_intent: ControlIntent | None = None
+        self._cooldown_until: datetime | None = None
 
     async def cycle(
         self, energy: EnergyState, *, at: datetime, enabled: bool
@@ -48,6 +49,8 @@ class ControlRuntime:
             return ControlDecision(None, False, "watchdog expired", True)
         intent = self._held_intent
         if intent is None or at >= intent.evaluated_at + timedelta(seconds=intent.hold_seconds):
+            if self._cooldown_until is not None and at < self._cooldown_until:
+                return ControlDecision(None, False, "rule cooldown active", False)
             intent = evaluate_rules(energy, self._rules, at=at)
         if intent is None:
             return ControlDecision(None, False, "no rule matched", False)
@@ -57,6 +60,11 @@ class ControlRuntime:
         self._watchdog.feed(at)
         record = await self._actuator.apply(intent, at=at)
         self._held_intent = intent if intent.hold_seconds > 0 else None
+        self._cooldown_until = (
+            at + timedelta(seconds=intent.cooldown_seconds)
+            if intent.cooldown_seconds > 0
+            else None
+        )
         return ControlDecision(intent, True, None, False, record)
 
     @property

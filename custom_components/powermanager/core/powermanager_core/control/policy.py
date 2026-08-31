@@ -30,6 +30,7 @@ class ControlRule:
     conditions: RuleConditions
     target_power_w: float
     hold_seconds: int = 0
+    cooldown_seconds: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +41,7 @@ class ControlIntent:
     target_power_w: float
     hold_seconds: int
     evaluated_at: datetime
+    cooldown_seconds: int = 0
 
 
 def evaluate_rules(
@@ -52,7 +54,13 @@ def evaluate_rules(
     """
     for rule in sorted(enumerate(rules), key=lambda item: (-item[1].priority, item[0])):
         if _matches(rule[1].conditions, energy, at):
-            return ControlIntent(rule[1].rule_id, rule[1].target_power_w, rule[1].hold_seconds, at)
+            return ControlIntent(
+                rule[1].rule_id,
+                rule[1].target_power_w,
+                rule[1].hold_seconds,
+                at,
+                rule[1].cooldown_seconds,
+            )
     return None
 
 
