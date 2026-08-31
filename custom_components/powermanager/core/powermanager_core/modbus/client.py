@@ -78,3 +78,17 @@ class PymodbusTcpReadOnlyTransport:
             raise BackendConnectionError(f"Modbus write failed: {error}") from error
         if result.isError():
             raise BackendConnectionError(f"Modbus device rejected write at address {address}")
+
+    async def read_holding_registers(self, address: int, count: int, unit_id: int) -> list[int]:
+        """Read holding registers for guarded control preflight checks."""
+        if self._client is None:
+            raise BackendConnectionError("Modbus client is not connected")
+        try:
+            result = await self._client.read_holding_registers(
+                address, count=count, device_id=unit_id
+            )
+        except Exception as error:
+            raise BackendConnectionError(f"Modbus read failed: {error}") from error
+        if result.isError() or not hasattr(result, "registers"):
+            raise BackendConnectionError(f"Modbus device returned an error for address {address}")
+        return list(result.registers)

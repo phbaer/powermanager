@@ -26,6 +26,9 @@ class HoldingRegisterWriteTransport(Protocol):
     ) -> None:
         """Write consecutive holding registers."""
 
+    async def read_holding_registers(self, address: int, count: int, unit_id: int) -> list[int]:
+        """Read consecutive holding registers."""
+
 
 @dataclass(frozen=True, slots=True)
 class ControlWriteGuard:
@@ -101,6 +104,30 @@ class SunnyIslandControlAdapter:
         await self._write_u32(41193, 2507)
         await self._write_u32(41195, timeout_seconds)
         await self._write_s32(44037, fallback_power_w, scale=100)
+
+    async def verify_failsafe(self) -> bool:
+        """Verify external mode and apply-fallback settings without writing."""
+        mode = await self._read_u32(40210)
+        fallback = await self._read_u32(41193)
+        timeout = await self._read_u32(41195)
+        fallback_power = await self._read_s32(44037, scale=100)
+        return (
+            mode == 1079
+            and fallback == 2507
+            and 1 <= timeout <= 1800
+            and 0 <= fallback_power <= 10000
+        )
+
+    async def _read_u32(self, address: int) -> int:
+        values = await self._transport.read_holding_registers(address, 2, self._unit_id)
+        if len(values) != 2:
+            raise ControlWriteError(f"invalid read length at register {address}")
+        return (values[0] << 16) | values[1]
+
+    async def _read_s32(self, address: int, *, scale: float) -> float:
+        raw = await self._read_u32(address)
+        signed = raw - 2**32 if raw & 0x80000000 else raw
+        return signed / scale
 
     async def _write_u32(self, address: int, value: int) -> None:
         if not self._guard.allowed:
