@@ -106,6 +106,10 @@ was performed. The snapshot confirms that the installation is already prepared
 for external setpoints, but the active owner (Home Manager versus another
 controller) and the physical phase/cluster topology still need confirmation.
 
+On the same date, the guarded adapter preflight re-read `40210`, `41193`,
+`41195`, and `44037` and returned `True`. This was read-only; no setpoint or
+parameter was changed.
+
 Then validate, with a physical emergency stop available: bounded setpoint,
 heartbeat loss, timeout fallback, TCP disconnect, inverter restart, and
 restoration of the original operating mode. No production write should be
