@@ -28,3 +28,26 @@ def test_runtime_requires_heartbeat_before_cycle() -> None:
     runtime = ControlRuntime((), watchdog=watchdog)
     decision = asyncio.run(runtime.cycle(energy, at=at + timedelta(seconds=31), enabled=False))
     assert decision.restore_normal
+
+
+def test_runtime_holds_accepted_intent_until_hold_period_expires() -> None:
+    at = datetime(2026, 1, 1, 12, tzinfo=UTC)
+    energy = EnergyState(
+        timestamp=at,
+        battery=BatteryState(timestamp=at, communication_state=CommunicationState.ONLINE),
+        grid=GridState(timestamp=at, grid_power_w=-800),
+    )
+    rule = ControlRule("surplus", 1, RuleConditions(grid_power_below_w=-500), 1500, hold_seconds=60)
+    runtime = ControlRuntime((rule,))
+    first = asyncio.run(runtime.cycle(energy, at=at, enabled=True))
+    assert first.accepted
+    no_surplus = EnergyState(
+        timestamp=at + timedelta(seconds=10),
+        battery=BatteryState(
+            timestamp=at + timedelta(seconds=10), communication_state=CommunicationState.ONLINE
+        ),
+        grid=GridState(timestamp=at + timedelta(seconds=10), grid_power_w=100),
+    )
+    held = asyncio.run(runtime.cycle(no_surplus, at=at + timedelta(seconds=10), enabled=True))
+    assert held.accepted
+    assert held.intent is not None and held.intent.rule_id == "surplus"

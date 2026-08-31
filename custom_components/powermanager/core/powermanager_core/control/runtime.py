@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from ..models import EnergyState
 from .policy import ControlIntent, ControlRule, evaluate_rules
@@ -37,6 +37,7 @@ class ControlRuntime:
         self._safety = safety or SafetyConfig()
         self._actuator = actuator or SimulationActuator()
         self._watchdog = watchdog or ControlWatchdog()
+        self._held_intent: ControlIntent | None = None
 
     async def cycle(
         self, energy: EnergyState, *, at: datetime, enabled: bool
@@ -45,7 +46,9 @@ class ControlRuntime:
         watchdog_status = self._watchdog.status(at)
         if watchdog_status.last_heartbeat is not None and watchdog_status.expired:
             return ControlDecision(None, False, "watchdog expired", True)
-        intent = evaluate_rules(energy, self._rules, at=at)
+        intent = self._held_intent
+        if intent is None or at >= intent.evaluated_at + timedelta(seconds=intent.hold_seconds):
+            intent = evaluate_rules(energy, self._rules, at=at)
         if intent is None:
             return ControlDecision(None, False, "no rule matched", False)
         valid, reason = validate_intent(intent, energy, self._safety, enabled=enabled, at=at)
@@ -53,6 +56,7 @@ class ControlRuntime:
             return ControlDecision(intent, False, reason, False)
         self._watchdog.feed(at)
         record = await self._actuator.apply(intent, at=at)
+        self._held_intent = intent if intent.hold_seconds > 0 else None
         return ControlDecision(intent, True, None, False, record)
 
     @property
