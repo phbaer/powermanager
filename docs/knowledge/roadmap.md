@@ -21,3 +21,8 @@ status: draft
 Active battery control is not part of the current release. It requires verified
 register semantics, explicit opt-in, command watchdogs, restore-normal behavior,
 and hardware validation before implementation.
+
+The documented register path is `40210=1079` plus cyclic `40149`/`40151`
+setpoints. Before implementing it, read back the timeout/fallback configuration
+(`41195`, `41193`, `44037`) and establish whether the Home Manager or
+PowerManager owns active-power control. Competing writers are unsupported.

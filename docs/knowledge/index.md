@@ -8,6 +8,7 @@ entries:
   - implementation.md
   - roadmap.md
   - control-plan.md
+  - control-write-research.md
 ---
 
 # PowerManager
@@ -22,3 +23,4 @@ telemetry providers are optional.
 - [Implementation](implementation.md) - What is implemented and how to operate it.
 - [Roadmap](roadmap.md) - Open work and safety gates.
 - [Control plan](control-plan.md) - Control infrastructure and declarative rules.
+- [Control/write research](control-write-research.md) - Verified SMA register and fail-safe constraints.
