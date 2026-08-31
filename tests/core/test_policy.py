@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 from powermanager_core.control import ControlRule, RuleConditions, evaluate_rules
-from powermanager_core.models import BatteryState, EnergyState, GridState
+from powermanager_core.models import BatteryState, EnergyState, GridState, PriceState
 
 
 def energy(grid: float | None, soc: float = 50) -> EnergyState:
@@ -42,3 +42,16 @@ def test_discharge_rule_can_require_high_soc_and_grid_import() -> None:
     result = evaluate_rules(energy(1000, soc=60), (rule,), at=at)
     assert result is not None
     assert result.target_power_w == -1000
+
+
+def test_price_condition_requires_matching_price() -> None:
+    at = datetime(2026, 1, 1, 12, tzinfo=UTC)
+    rule = ControlRule("cheap", 1, RuleConditions(price_below_per_kwh=0.20), 1000)
+    priced = energy(-100, soc=60)
+    priced = EnergyState(
+        timestamp=at,
+        battery=priced.battery,
+        grid=priced.grid,
+        price=PriceState(timestamp=at, price_per_kwh=0.15),
+    )
+    assert evaluate_rules(priced, (rule,), at=at) is not None

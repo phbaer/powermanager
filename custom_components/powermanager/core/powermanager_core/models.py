@@ -55,9 +55,20 @@ class GridState:
 
 
 @dataclass(frozen=True, slots=True)
+class PriceState:
+    """Current electricity market price in currency units per kWh."""
+
+    timestamp: datetime
+    price_per_kwh: float | None = None
+    currency: str | None = None
+    communication_state: CommunicationState = CommunicationState.UNKNOWN
+
+
+@dataclass(frozen=True, slots=True)
 class EnergyState:
     """Merged, timestamped energy state consumed by later control policies."""
 
     timestamp: datetime
     battery: BatteryState
     grid: GridState | None = None
+    price: PriceState | None = None

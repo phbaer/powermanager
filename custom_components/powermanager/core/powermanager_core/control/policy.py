@@ -16,6 +16,8 @@ class RuleConditions:
     grid_power_above_w: float | None = None
     battery_soc_below_percent: float | None = None
     battery_soc_above_percent: float | None = None
+    price_below_per_kwh: float | None = None
+    price_above_per_kwh: float | None = None
     between: tuple[time, time] | None = None
 
 
@@ -81,6 +83,21 @@ def _matches(conditions: RuleConditions, energy: EnergyState, at: datetime) -> b
         if (
             battery.battery_soc_percent is None
             or battery.battery_soc_percent <= conditions.battery_soc_above_percent
+        ):
+            return False
+    price = energy.price
+    if conditions.price_below_per_kwh is not None:
+        if (
+            price is None
+            or price.price_per_kwh is None
+            or price.price_per_kwh >= conditions.price_below_per_kwh
+        ):
+            return False
+    if conditions.price_above_per_kwh is not None:
+        if (
+            price is None
+            or price.price_per_kwh is None
+            or price.price_per_kwh <= conditions.price_above_per_kwh
         ):
             return False
     if conditions.between is not None and not _in_time_window(at.time(), conditions.between):

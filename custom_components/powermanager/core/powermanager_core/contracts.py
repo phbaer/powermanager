@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from .models import BatteryState, DeviceInfo, GridState
+from .models import BatteryState, DeviceInfo, GridState, PriceState
 
 
 class BatteryBackend(Protocol):
@@ -22,3 +22,10 @@ class GridTelemetryProvider(Protocol):
 
     async def read_grid_state(self) -> GridState:
         """Return the latest grid-side telemetry."""
+
+
+class PriceTelemetryProvider(Protocol):
+    """An optional source of current electricity market prices."""
+
+    async def read_price_state(self) -> PriceState:
+        """Return the latest market price."""

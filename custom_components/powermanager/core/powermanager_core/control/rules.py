@@ -53,6 +53,8 @@ def _parse_rule(raw: Any) -> ControlRule:
                 battery_soc_above_percent=_optional_float(
                     when.get("battery_soc_above_percent")
                 ),
+                price_below_per_kwh=_optional_float(when.get("price_below_per_kwh")),
+                price_above_per_kwh=_optional_float(when.get("price_above_per_kwh")),
                 between=window,
             ),
             target_power_w=float(action["target_power_w"]),
