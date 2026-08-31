@@ -75,3 +75,38 @@ class SunnyIslandControlAdapter:
         await self._transport.write_holding_registers(
             40149, [(encoded >> 16) & 0xFFFF, encoded & 0xFFFF], self._unit_id
         )
+
+    async def enable_external_setpoint_mode(self) -> None:
+        """Select external active-power setpoint mode (40210 = 1079)."""
+        await self._write_u32(40210, 1079)
+
+    async def set_communication_control(self, enabled: bool) -> None:
+        """Enable or disable communication control (40151 = 802/803)."""
+        await self._write_u32(40151, 802 if enabled else 803)
+
+    async def set_power_bounds(self, minimum_percent: float, maximum_percent: float) -> None:
+        """Set documented min/max active-power bounds as percent of nominal power."""
+        if not -100 <= minimum_percent <= maximum_percent <= 100:
+            raise ControlWriteError("power bounds must satisfy -100 <= min <= max <= 100")
+        await self._write_s32(44041, minimum_percent, scale=100)
+        await self._write_s32(44039, maximum_percent, scale=100)
+
+    async def _write_u32(self, address: int, value: int) -> None:
+        if not self._guard.allowed:
+            raise ControlWriteError("active control is locked")
+        if not 0 <= value <= 0xFFFFFFFF:
+            raise ControlWriteError("unsigned register value is out of range")
+        await self._transport.write_holding_registers(
+            address, [(value >> 16) & 0xFFFF, value & 0xFFFF], self._unit_id
+        )
+
+    async def _write_s32(self, address: int, value: float, *, scale: float) -> None:
+        if not self._guard.allowed:
+            raise ControlWriteError("active control is locked")
+        raw = int(round(value * scale))
+        if not -(2**31) <= raw <= 2**31 - 1:
+            raise ControlWriteError("signed register value is out of range")
+        encoded = raw & 0xFFFFFFFF
+        await self._transport.write_holding_registers(
+            address, [(encoded >> 16) & 0xFFFF, encoded & 0xFFFF], self._unit_id
+        )

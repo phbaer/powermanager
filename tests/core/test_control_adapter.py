@@ -44,3 +44,20 @@ def test_signed_setpoint_is_encoded_as_two_registers() -> None:
     )
     asyncio.run(adapter.set_active_power(-1500))
     assert transport.calls == [(40149, [0xFFFF, 0xFA24], 3)]
+
+
+def test_mode_and_bounds_use_documented_registers() -> None:
+    transport = FakeTransport()
+    adapter = SunnyIslandControlAdapter(
+        transport,
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+    )
+    asyncio.run(adapter.enable_external_setpoint_mode())
+    asyncio.run(adapter.set_communication_control(True))
+    asyncio.run(adapter.set_power_bounds(-50, 75))
+    assert transport.calls == [
+        (40210, [0, 1079], 3),
+        (40151, [0, 802], 3),
+        (44041, [0xFFFF, 0xEC78], 3),
+        (44039, [0, 7500], 3),
+    ]
