@@ -21,6 +21,7 @@ uv sync --extra sma --extra dev
 uv run pytest
 uv run ruff check .
 uv run powermanager status --host 192.168.1.50
+uv run powermanager commission --host 192.168.1.50
 uv run powermanager speedwire-capture --duration 60 --show-hex
 ```
 
@@ -38,6 +39,10 @@ write adapter are complete.
 The polling interval can be adjusted from the integration's Home Assistant options
 flow (5–300 seconds). Connection details remain in the config entry and all device
 communication remains read-only.
+
+`powermanager commission` performs a read-only preflight of the Sunny Island's
+external-setpoint and fallback configuration. It never sends a setpoint or changes
+an inverter parameter.
 
 `speedwire-capture` passively prints validated SMA multicast frames for protocol
 analysis; it does not transmit packets or decode unverified measurement offsets.

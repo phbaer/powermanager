@@ -8,9 +8,14 @@ import time
 from datetime import UTC, datetime
 
 from .backends.sma_speedwire import SpeedwireListener
-from .backends.sma_sunny_island import SunnyIslandClient, SunnyIslandConnectionConfig
+from .backends.sma_sunny_island import (
+    SunnyIslandClient,
+    SunnyIslandConnectionConfig,
+    read_commissioning_report,
+)
 from .control import ControlRuntime, load_rules
 from .exceptions import PowerManagerError
+from .modbus.client import PymodbusTcpReadOnlyTransport
 from .models import BatteryState, CommunicationState, EnergyState, GridState
 
 
@@ -23,6 +28,13 @@ def build_parser() -> argparse.ArgumentParser:
     status.add_argument("--port", type=int, default=502, help="Modbus TCP port (default: 502)")
     status.add_argument("--unit-id", type=int, default=3, help="Modbus unit ID (default: 3)")
     status.add_argument("--timeout", type=float, default=5.0, help="TCP timeout in seconds")
+    commission = subcommands.add_parser(
+        "commission", help="Read-only control commissioning preflight"
+    )
+    commission.add_argument("--host", required=True, help="Sunny Island host name or IP address")
+    commission.add_argument("--port", type=int, default=502)
+    commission.add_argument("--unit-id", type=int, default=3)
+    commission.add_argument("--timeout", type=float, default=5.0)
     capture = subcommands.add_parser(
         "speedwire-capture", help="Passively capture SMA Speedwire multicast frames"
     )
@@ -63,6 +75,24 @@ async def _status(args: argparse.Namespace) -> int:
     print(f"Battery voltage:  {state.battery_voltage_v} V")
     print(f"Discharge floor:  {state.discharge_limit_soc_percent} % SoC")
     return 0
+
+
+async def _commission(args: argparse.Namespace) -> int:
+    transport = PymodbusTcpReadOnlyTransport(args.host, args.port, args.unit_id, args.timeout)
+    try:
+        await transport.connect()
+        report = await read_commissioning_report(transport, args.unit_id)
+    except PowerManagerError as error:
+        print(f"Unable to read commissioning registers: {error}")
+        return 2
+    finally:
+        await transport.close()
+    print(f"External mode:       {report.external_mode}")
+    print(f"Fallback behavior:   {report.fallback_behavior}")
+    print(f"Timeout:             {report.timeout_seconds} s")
+    print(f"Fallback power:      {report.fallback_power_w} W")
+    print(f"Ready for control:   {report.ready_for_control}")
+    return 0 if report.ready_for_control else 1
 
 
 async def _speedwire_capture(args: argparse.Namespace) -> int:
@@ -126,6 +156,8 @@ def main() -> int:
     args = build_parser().parse_args()
     if args.command == "status":
         return asyncio.run(_status(args))
+    if args.command == "commission":
+        return asyncio.run(_commission(args))
     if args.command == "speedwire-capture":
         return asyncio.run(_speedwire_capture(args))
     if args.command == "simulate":
