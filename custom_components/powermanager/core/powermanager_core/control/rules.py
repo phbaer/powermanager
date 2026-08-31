@@ -46,8 +46,12 @@ def _parse_rule(raw: Any) -> ControlRule:
             priority=int(raw.get("priority", 0)),
             conditions=RuleConditions(
                 grid_power_below_w=_optional_float(when.get("grid_power_below_w")),
+                grid_power_above_w=_optional_float(when.get("grid_power_above_w")),
                 battery_soc_below_percent=_optional_float(
                     when.get("battery_soc_below_percent")
+                ),
+                battery_soc_above_percent=_optional_float(
+                    when.get("battery_soc_above_percent")
                 ),
                 between=window,
             ),

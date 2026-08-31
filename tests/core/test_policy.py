@@ -29,3 +29,16 @@ def test_missing_grid_data_does_not_match_grid_rule() -> None:
     at = datetime(2026, 1, 1, 12, tzinfo=UTC)
     rule = ControlRule("surplus", 1, RuleConditions(grid_power_below_w=-500), 1500)
     assert evaluate_rules(energy(None), (rule,), at=at) is None
+
+
+def test_discharge_rule_can_require_high_soc_and_grid_import() -> None:
+    at = datetime(2026, 1, 1, 20, tzinfo=UTC)
+    rule = ControlRule(
+        "peak",
+        1,
+        RuleConditions(grid_power_above_w=500, battery_soc_above_percent=40),
+        -1000,
+    )
+    result = evaluate_rules(energy(1000, soc=60), (rule,), at=at)
+    assert result is not None
+    assert result.target_power_w == -1000

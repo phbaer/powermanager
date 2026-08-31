@@ -13,7 +13,9 @@ class RuleConditions:
     """Optional predicates for a control rule."""
 
     grid_power_below_w: float | None = None
+    grid_power_above_w: float | None = None
     battery_soc_below_percent: float | None = None
+    battery_soc_above_percent: float | None = None
     between: tuple[time, time] | None = None
 
 
@@ -62,10 +64,23 @@ def _matches(conditions: RuleConditions, energy: EnergyState, at: datetime) -> b
             or grid.grid_power_w >= conditions.grid_power_below_w
         ):
             return False
+    if conditions.grid_power_above_w is not None:
+        if (
+            grid is None
+            or grid.grid_power_w is None
+            or grid.grid_power_w <= conditions.grid_power_above_w
+        ):
+            return False
     if conditions.battery_soc_below_percent is not None:
         if (
             battery.battery_soc_percent is None
             or battery.battery_soc_percent >= conditions.battery_soc_below_percent
+        ):
+            return False
+    if conditions.battery_soc_above_percent is not None:
+        if (
+            battery.battery_soc_percent is None
+            or battery.battery_soc_percent <= conditions.battery_soc_above_percent
         ):
             return False
     if conditions.between is not None and not _in_time_window(at.time(), conditions.between):

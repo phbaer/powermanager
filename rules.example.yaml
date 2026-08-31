@@ -25,3 +25,14 @@ rules:
     then:
       target_power_w: 500
     hold_seconds: 300
+
+  # Discharge during import peaks only while the battery is well above reserve.
+  - id: discharge-import-peak
+    priority: 20
+    when:
+      grid_power_above_w: 2000
+      battery_soc_above_percent: 40
+      between: ["18:00", "22:00"]
+    then:
+      target_power_w: -1000
+    hold_seconds: 600
