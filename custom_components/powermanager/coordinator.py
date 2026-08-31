@@ -15,6 +15,7 @@ from .const import (
     CONF_HOST,
     CONF_LOAD_POWER_ENTITY,
     CONF_PORT,
+    CONF_PRICE_ENTITY,
     CONF_PV_POWER_ENTITY,
     CONF_SCAN_INTERVAL,
     CONF_TELEMETRY_MAX_AGE,
@@ -30,6 +31,7 @@ from .core.powermanager_core.backends.sma_sunny_island import (
 from .core.powermanager_core.exceptions import PowerManagerError
 from .core.powermanager_core.models import BatteryState, DeviceInfo, EnergyState
 from .ha_entity_provider import HomeAssistantEntityGridProvider
+from .ha_price_provider import HomeAssistantEntityPriceProvider
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,6 +70,11 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             entry.options.get(CONF_LOAD_POWER_ENTITY),
             entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS),
         )
+        self._price_provider = HomeAssistantEntityPriceProvider(
+            hass,
+            entry.options.get(CONF_PRICE_ENTITY),
+            entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS),
+        )
 
     async def _async_update_data(self) -> PowerManagerData:
         """Read state through a new TCP connection, allowing safe reconnects."""
@@ -85,10 +92,18 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             if self._grid_provider.configured
             else None
         )
+        price_state = (
+            await self._price_provider.read_price_state()
+            if self._price_provider.configured
+            else None
+        )
         return PowerManagerData(
             device_info=device_info,
             battery_state=battery_state,
             energy_state=EnergyState(
-                timestamp=battery_state.timestamp, battery=battery_state, grid=grid_state
+                timestamp=battery_state.timestamp,
+                battery=battery_state,
+                grid=grid_state,
+                price=price_state,
             ),
         )

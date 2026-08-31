@@ -11,6 +11,7 @@ CONF_GRID_POWER_ENTITY = "grid_power_entity"
 CONF_PV_POWER_ENTITY = "pv_power_entity"
 CONF_LOAD_POWER_ENTITY = "load_power_entity"
 CONF_TELEMETRY_MAX_AGE = "telemetry_max_age"
+CONF_PRICE_ENTITY = "price_entity"
 
 DEFAULT_PORT = 502
 DEFAULT_UNIT_ID = 3

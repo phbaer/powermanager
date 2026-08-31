@@ -114,6 +114,15 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
         if coordinator.data.energy_state.grid
         else None,
     ),
+    PowerManagerSensorDescription(
+        key="price",
+        translation_key="price",
+        native_unit_of_measurement="/kWh",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.energy_state.price.price_per_kwh
+        if coordinator.data.energy_state.price
+        else None,
+    ),
 )
 
 

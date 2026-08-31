@@ -27,7 +27,8 @@
           "grid_power_entity": "Grid power entity",
           "pv_power_entity": "PV power entity",
           "load_power_entity": "Load power entity",
-          "telemetry_max_age": "Maximum telemetry age (seconds)"
+          "telemetry_max_age": "Maximum telemetry age (seconds)",
+          "price_entity": "Market price entity"
         }
       }
     }
@@ -44,7 +45,8 @@
       "discharge_soc_limit": {"name": "Discharge SoC limit"},
       "grid_power": {"name": "Grid power"},
       "pv_power": {"name": "PV power"},
-      "load_power": {"name": "Load power"}
+      "load_power": {"name": "Load power"},
+      "price": {"name": "Market price"}
     }
   }
 }
