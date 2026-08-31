@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
@@ -24,6 +25,10 @@ from .const import (
     DEFAULT_TELEMETRY_MAX_AGE_SECONDS,
     DOMAIN,
 )
+from .core.powermanager_core.backends.sma_speedwire import (
+    ExternalControllerMonitor,
+    SpeedwireListener,
+)
 from .core.powermanager_core.backends.sma_sunny_island import (
     SunnyIslandClient,
     SunnyIslandConnectionConfig,
@@ -43,6 +48,8 @@ class PowerManagerData:
     device_info: DeviceInfo
     battery_state: BatteryState
     energy_state: EnergyState
+    possible_external_controller: bool = False
+    speedwire_sources: tuple[str, ...] = ()
 
 
 class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
@@ -75,6 +82,41 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             entry.options.get(CONF_PRICE_ENTITY),
             entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS),
         )
+        self._speedwire_monitor = ExternalControllerMonitor(self._config.host)
+        self._speedwire_task: asyncio.Task[None] | None = None
+
+    def start_speedwire_monitor(self) -> None:
+        """Start passive multicast observation without affecting Modbus polling."""
+        if self._speedwire_task is None:
+            self._speedwire_task = asyncio.create_task(self._observe_speedwire())
+
+    async def stop_speedwire_monitor(self) -> None:
+        """Stop passive multicast observation during unload."""
+        if self._speedwire_task is not None:
+            self._speedwire_task.cancel()
+            await asyncio.gather(self._speedwire_task, return_exceptions=True)
+            self._speedwire_task = None
+
+    async def _observe_speedwire(self) -> None:
+        listener = SpeedwireListener()
+        try:
+            async with listener:
+                async for frame in listener.frames():
+                    self._speedwire_monitor.observe(frame)
+                    if self.data is not None:
+                        self.async_set_updated_data(
+                            PowerManagerData(
+                                self.data.device_info,
+                                self.data.battery_state,
+                                self.data.energy_state,
+                                self._speedwire_monitor.possible_external_controller,
+                                tuple(sorted(self._speedwire_monitor.observed_sources)),
+                            )
+                        )
+        except asyncio.CancelledError:
+            raise
+        except OSError as error:
+            _LOGGER.warning("SMA Speedwire listener unavailable: %s", error)
 
     async def _async_update_data(self) -> PowerManagerData:
         """Read state through a new TCP connection, allowing safe reconnects."""

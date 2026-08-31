@@ -1,0 +1,35 @@
+"""Safety warnings derived from passive telemetry observation."""
+
+from __future__ import annotations
+
+from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .const import DOMAIN
+from .coordinator import PowerManagerCoordinator
+
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
+    """Expose a warning when another SMA sender appears on Speedwire."""
+    async_add_entities([ExternalControllerWarning(hass.data[DOMAIN][entry.entry_id], entry)])
+
+
+class ExternalControllerWarning(CoordinatorEntity[PowerManagerCoordinator], BinarySensorEntity):
+    """Possible competing controller detected from passive Speedwire traffic."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "external_controller_warning"
+
+    def __init__(self, coordinator: PowerManagerCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.unique_id or entry.entry_id}_external_controller_warning"
+
+    @property
+    def is_on(self) -> bool:
+        """Return true when a non-Sunny-Island sender has been observed."""
+        return self.coordinator.data.possible_external_controller

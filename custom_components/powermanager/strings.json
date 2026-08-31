@@ -34,6 +34,9 @@
     }
   },
   "entity": {
+    "binary_sensor": {
+      "external_controller_warning": {"name": "Possible external controller"}
+    },
     "sensor": {
       "device_type": {"name": "Device type"},
       "communication_state": {"name": "Communication state"},
