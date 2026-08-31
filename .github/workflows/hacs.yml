@@ -37,7 +37,13 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
       - name: Check integration layout
-        run: test -f "$INTEGRATION_PATH/manifest.json"
+        run: |
+          test -f "$INTEGRATION_PATH/manifest.json"
+          test -f "$INTEGRATION_PATH/strings.json"
+          test -f "$INTEGRATION_PATH/translations/en.json"
+          python -m json.tool "$INTEGRATION_PATH/manifest.json" >/dev/null
+          python -m json.tool "$INTEGRATION_PATH/strings.json" >/dev/null
+          python -m json.tool "$INTEGRATION_PATH/translations/en.json" >/dev/null
       - uses: hacs/action@main
         with:
           category: integration

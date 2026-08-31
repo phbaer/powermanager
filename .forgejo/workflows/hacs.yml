@@ -32,7 +32,13 @@ jobs:
           ref: ${{ inputs.release_tag || forgejo.ref }}
 
       - name: Check integration layout
-        run: test -f "$INTEGRATION_PATH/manifest.json"
+        run: |
+          test -f "$INTEGRATION_PATH/manifest.json"
+          test -f "$INTEGRATION_PATH/strings.json"
+          test -f "$INTEGRATION_PATH/translations/en.json"
+          python3 -m json.tool "$INTEGRATION_PATH/manifest.json" >/dev/null
+          python3 -m json.tool "$INTEGRATION_PATH/strings.json" >/dev/null
+          python3 -m json.tool "$INTEGRATION_PATH/translations/en.json" >/dev/null
 
       - name: Validate HACS integration
         uses: https://github.com/hacs/action@main
