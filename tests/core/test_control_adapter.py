@@ -4,6 +4,7 @@ import asyncio
 
 import pytest
 from powermanager_core.backends.sma_sunny_island import (
+    ControlCommandSession,
     ControlWriteError,
     ControlWriteGuard,
     SunnyIslandControlAdapter,
@@ -98,3 +99,14 @@ def test_failsafe_preflight_is_read_only() -> None:
     adapter = SunnyIslandControlAdapter(transport)
     assert asyncio.run(adapter.verify_failsafe())
     assert transport.calls == []
+
+
+def test_bounded_session_restores_normal_operation() -> None:
+    transport = FakeTransport()
+    adapter = SunnyIslandControlAdapter(
+        transport,
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+    )
+    asyncio.run(ControlCommandSession(adapter, interval_seconds=0.5).run_for(100, 0.001))
+    assert transport.calls[0][0] == 40149
+    assert transport.calls[-2:] == [(40151, [0, 803], 3), (40210, [0, 303], 3)]

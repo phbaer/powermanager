@@ -178,3 +178,15 @@ class ControlCommandSession:
                 await asyncio.wait_for(stop.wait(), timeout=self._interval)
             except TimeoutError:
                 continue
+
+    async def run_for(self, power_w: float, duration_seconds: float) -> None:
+        """Run a bounded command session and restore normal operation afterwards."""
+        if duration_seconds <= 0:
+            raise ValueError("command duration must be positive")
+        stop = asyncio.Event()
+        try:
+            await asyncio.wait_for(self.run(power_w, stop), timeout=duration_seconds)
+        except TimeoutError:
+            pass
+        finally:
+            await self._adapter.restore_normal_operation()
