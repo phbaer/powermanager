@@ -88,6 +88,12 @@ class SunnyIslandControlAdapter:
         """Enable or disable communication control (40151 = 802/803)."""
         await self._write_u32(40151, 802 if enabled else 803)
 
+    async def restore_normal_operation(self) -> None:
+        """Stop external commands and return active-power mode to Off."""
+        # Disable communication first so no stale setpoint remains authoritative.
+        await self._write_u32(40151, 803)
+        await self._write_u32(40210, 303)
+
     async def set_power_bounds(self, minimum_percent: float, maximum_percent: float) -> None:
         """Set documented min/max active-power bounds as percent of nominal power."""
         if not -100 <= minimum_percent <= maximum_percent <= 100:

@@ -67,6 +67,16 @@ def test_mode_and_bounds_use_documented_registers() -> None:
     ]
 
 
+def test_restore_normal_disables_communication_before_mode() -> None:
+    transport = FakeTransport()
+    adapter = SunnyIslandControlAdapter(
+        transport,
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+    )
+    asyncio.run(adapter.restore_normal_operation())
+    assert transport.calls == [(40151, [0, 803], 3), (40210, [0, 303], 3)]
+
+
 def test_failsafe_configuration_is_validated_and_guarded() -> None:
     transport = FakeTransport()
     adapter = SunnyIslandControlAdapter(
