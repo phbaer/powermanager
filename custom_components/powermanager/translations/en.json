@@ -28,7 +28,9 @@
           "pv_power_entity": "PV power entity",
           "load_power_entity": "Load power entity",
           "telemetry_max_age": "Maximum telemetry age (seconds)",
-          "price_entity": "Market price entity"
+          "price_entity": "Market price entity",
+          "remaining_pv_forecast_entity": "Remaining PV forecast entity",
+          "remaining_load_forecast_entity": "Expected remaining load entity"
         }
       }
     }

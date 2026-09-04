@@ -56,6 +56,9 @@ def _parse_rule(raw: Any) -> ControlRule:
                 ),
                 price_below_per_kwh=_optional_float(when.get("price_below_per_kwh")),
                 price_above_per_kwh=_optional_float(when.get("price_above_per_kwh")),
+                forecast_surplus_above_kwh=_optional_float(
+                    when.get("forecast_surplus_above_kwh")
+                ),
                 between=window,
             ),
             target_power_w=float(action["target_power_w"]),
@@ -94,6 +97,11 @@ def _validate_conditions(rule: ControlRule) -> None:
     for threshold in (conditions.price_below_per_kwh, conditions.price_above_per_kwh):
         if threshold is not None and threshold < 0:
             raise ValueError("price thresholds cannot be negative")
+    if (
+        conditions.forecast_surplus_above_kwh is not None
+        and conditions.forecast_surplus_above_kwh < 0
+    ):
+        raise ValueError("forecast surplus threshold cannot be negative")
 
 
 def _parse_time(value: Any) -> time:

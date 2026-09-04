@@ -69,3 +69,17 @@ def normalize_price_per_kwh(value: Any, unit: str | None) -> tuple[float, str | 
     if compact.endswith("/kwh") or compact.endswith("per_kwh"):
         return parsed, normalized
     return None
+
+
+def normalize_energy_kwh(value: Any, unit: str | None) -> float | None:
+    """Normalize an explicit Wh/kWh/MWh measurement to kWh."""
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(parsed):
+        return None
+    compact = (unit or "").strip().lower().replace(" ", "")
+    factors = {"wh": 0.001, "kwh": 1, "mwh": 1000}
+    factor = factors.get(compact)
+    return None if factor is None else parsed * factor

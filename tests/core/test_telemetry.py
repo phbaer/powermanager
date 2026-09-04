@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from powermanager_core.models import CommunicationState
 from powermanager_core.telemetry import (
     communication_state_for_timestamp,
+    normalize_energy_kwh,
     normalize_power_state,
     normalize_price_per_kwh,
 )
@@ -41,3 +42,9 @@ def test_price_normalization_requires_an_explicit_energy_unit() -> None:
     assert normalize_price_per_kwh("150", "EUR/MWh") == (0.15, "EUR/kWh")
     assert normalize_price_per_kwh("0.15", "EUR/kWh") == (0.15, "EUR/kWh")
     assert normalize_price_per_kwh("0.15", "EUR") is None
+
+
+def test_energy_normalization_requires_an_explicit_energy_unit() -> None:
+    assert normalize_energy_kwh("1500", "Wh") == 1.5
+    assert normalize_energy_kwh("1.5", "MWh") == 1500
+    assert normalize_energy_kwh("1.5", None) is None

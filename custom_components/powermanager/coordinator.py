@@ -18,6 +18,8 @@ from .const import (
     CONF_PORT,
     CONF_PRICE_ENTITY,
     CONF_PV_POWER_ENTITY,
+    CONF_REMAINING_LOAD_FORECAST_ENTITY,
+    CONF_REMAINING_PV_FORECAST_ENTITY,
     CONF_SCAN_INTERVAL,
     CONF_TELEMETRY_MAX_AGE,
     CONF_UNIT_ID,
@@ -36,6 +38,7 @@ from .core.powermanager_core.backends.sma_sunny_island import (
 from .core.powermanager_core.exceptions import PowerManagerError
 from .core.powermanager_core.models import BatteryState, DeviceInfo, EnergyState
 from .ha_entity_provider import HomeAssistantEntityGridProvider
+from .ha_forecast_provider import HomeAssistantEntityForecastProvider
 from .ha_price_provider import HomeAssistantEntityPriceProvider
 
 _LOGGER = logging.getLogger(__name__)
@@ -80,6 +83,12 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         self._price_provider = HomeAssistantEntityPriceProvider(
             hass,
             entry.options.get(CONF_PRICE_ENTITY),
+            entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS),
+        )
+        self._forecast_provider = HomeAssistantEntityForecastProvider(
+            hass,
+            entry.options.get(CONF_REMAINING_PV_FORECAST_ENTITY),
+            entry.options.get(CONF_REMAINING_LOAD_FORECAST_ENTITY),
             entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS),
         )
         self._speedwire_monitor = ExternalControllerMonitor(self._config.host)
@@ -139,6 +148,11 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             if self._price_provider.configured
             else None
         )
+        forecast_state = (
+            await self._forecast_provider.read_forecast_state()
+            if self._forecast_provider.configured
+            else None
+        )
         return PowerManagerData(
             device_info=device_info,
             battery_state=battery_state,
@@ -147,5 +161,6 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
                 battery=battery_state,
                 grid=grid_state,
                 price=price_state,
+                forecast=forecast_state,
             ),
         )

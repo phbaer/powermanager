@@ -65,6 +65,27 @@ class PriceState:
 
 
 @dataclass(frozen=True, slots=True)
+class ForecastState:
+    """Remaining local energy forecast, normalized to kWh.
+
+    These are optional planning inputs only.  A missing or stale forecast never
+    causes a policy to infer a value or issue a command.
+    """
+
+    timestamp: datetime
+    remaining_pv_kwh: float | None = None
+    expected_remaining_load_kwh: float | None = None
+    communication_state: CommunicationState = CommunicationState.UNKNOWN
+
+    @property
+    def expected_surplus_kwh(self) -> float | None:
+        """Return forecast PV less forecast load when both are available."""
+        if self.remaining_pv_kwh is None or self.expected_remaining_load_kwh is None:
+            return None
+        return self.remaining_pv_kwh - self.expected_remaining_load_kwh
+
+
+@dataclass(frozen=True, slots=True)
 class EnergyState:
     """Merged, timestamped energy state consumed by later control policies."""
 
@@ -72,3 +93,4 @@ class EnergyState:
     battery: BatteryState
     grid: GridState | None = None
     price: PriceState | None = None
+    forecast: ForecastState | None = None

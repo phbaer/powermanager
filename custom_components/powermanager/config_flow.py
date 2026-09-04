@@ -16,6 +16,8 @@ from .const import (
     CONF_PORT,
     CONF_PRICE_ENTITY,
     CONF_PV_POWER_ENTITY,
+    CONF_REMAINING_LOAD_FORECAST_ENTITY,
+    CONF_REMAINING_PV_FORECAST_ENTITY,
     CONF_SCAN_INTERVAL,
     CONF_TELEMETRY_MAX_AGE,
     CONF_UNIT_ID,
@@ -125,6 +127,14 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 vol.Optional(
                     CONF_PRICE_ENTITY,
                     default=self._config_entry.options.get(CONF_PRICE_ENTITY, ""),
+                ): str,
+                vol.Optional(
+                    CONF_REMAINING_PV_FORECAST_ENTITY,
+                    default=self._config_entry.options.get(CONF_REMAINING_PV_FORECAST_ENTITY, ""),
+                ): str,
+                vol.Optional(
+                    CONF_REMAINING_LOAD_FORECAST_ENTITY,
+                    default=self._config_entry.options.get(CONF_REMAINING_LOAD_FORECAST_ENTITY, ""),
                 ): str,
                 vol.Required(
                     CONF_TELEMETRY_MAX_AGE,

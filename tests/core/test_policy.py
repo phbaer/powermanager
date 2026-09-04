@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 from powermanager_core.control import ControlRule, RuleConditions, evaluate_rules
-from powermanager_core.models import BatteryState, EnergyState, GridState, PriceState
+from powermanager_core.models import BatteryState, EnergyState, ForecastState, GridState, PriceState
 
 
 def energy(grid: float | None, soc: float = 50) -> EnergyState:
@@ -55,3 +55,16 @@ def test_price_condition_requires_matching_price() -> None:
         price=PriceState(timestamp=at, price_per_kwh=0.15),
     )
     assert evaluate_rules(priced, (rule,), at=at) is not None
+
+
+def test_forecast_condition_requires_a_fresh_complete_forecast() -> None:
+    at = datetime(2026, 1, 1, 12, tzinfo=UTC)
+    rule = ControlRule("preserve-headroom", 1, RuleConditions(forecast_surplus_above_kwh=3), 0)
+    state = energy(-100, soc=60)
+    forecast = ForecastState(
+        timestamp=at, remaining_pv_kwh=10, expected_remaining_load_kwh=5
+    )
+    forecasted = EnergyState(
+        timestamp=at, battery=state.battery, grid=state.grid, forecast=forecast
+    )
+    assert evaluate_rules(forecasted, (rule,), at=at) is not None
