@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
-from homeassistant.components.recorder import history
+from homeassistant.components.recorder import get_instance, history
 from homeassistant.util import dt as dt_util
 
 from .core.powermanager_core.models import CommunicationState, ForecastState
@@ -116,7 +116,7 @@ class HomeAssistantEntityForecastProvider:
             for day_start in day_starts
         ]
         try:
-            values = await self._hass.async_add_executor_job(
+            values = await get_instance(self._hass).async_add_executor_job(
                 self._read_historical_energy, day_starts, day_ends
             )
         except Exception:  # Recorder availability must not break normal telemetry.
