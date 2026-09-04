@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-import math
 from datetime import UTC, datetime
 
 from .core.powermanager_core.models import CommunicationState, PriceState
+from .core.powermanager_core.telemetry import (
+    communication_state_for_timestamp,
+    normalize_price_per_kwh,
+)
 
 
 class HomeAssistantEntityPriceProvider:
@@ -25,24 +28,24 @@ class HomeAssistantEntityPriceProvider:
         value = None
         currency = None
         timestamp = datetime.now(UTC)
+        communication = CommunicationState.OFFLINE
         if state is not None and state.state not in ("unknown", "unavailable"):
             updated = state.last_updated
             if updated.tzinfo is None:
                 updated = updated.replace(tzinfo=UTC)
             if (datetime.now(UTC) - updated).total_seconds() <= self._max_age_seconds:
-                try:
-                    parsed = float(state.state)
-                    if math.isfinite(parsed):
-                        value = parsed
-                except (TypeError, ValueError):
-                    value = None
-                currency = state.attributes.get("unit_of_measurement")
+                normalized = normalize_price_per_kwh(
+                    state.state, state.attributes.get("unit_of_measurement")
+                )
+                if normalized is not None:
+                    value, currency = normalized
                 timestamp = updated
+            communication = communication_state_for_timestamp(
+                updated, now=datetime.now(UTC), max_age_seconds=self._max_age_seconds
+            )
         return PriceState(
             timestamp=timestamp,
             price_per_kwh=value,
             currency=currency,
-            communication_state=(
-                CommunicationState.ONLINE if value is not None else CommunicationState.OFFLINE
-            ),
+            communication_state=communication if value is None else CommunicationState.ONLINE,
         )

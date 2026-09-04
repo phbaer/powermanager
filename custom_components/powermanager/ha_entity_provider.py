@@ -9,7 +9,10 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 from .core.powermanager_core.models import CommunicationState, GridState
-from .core.powermanager_core.telemetry import normalize_power_state
+from .core.powermanager_core.telemetry import (
+    communication_state_for_timestamp,
+    normalize_power_state,
+)
 
 
 class HomeAssistantEntityGridProvider:
@@ -41,10 +44,19 @@ class HomeAssistantEntityGridProvider:
         values: dict[str, float | None] = {}
         for key, entity_id in self._entities.items():
             values[key] = self._read_power(entity_id)
+        timestamps = [
+            self._hass.states.get(entity_id).last_updated
+            for entity_id in self._entities.values()
+            if entity_id and self._hass.states.get(entity_id) is not None
+        ]
         communication = (
             CommunicationState.ONLINE
             if any(value is not None for value in values.values())
-            else CommunicationState.OFFLINE
+            else communication_state_for_timestamp(
+                max(timestamps) if timestamps else None,
+                now=datetime.now(UTC),
+                max_age_seconds=self._max_age_seconds,
+            )
         )
         return GridState(
             timestamp=datetime.now(UTC),
