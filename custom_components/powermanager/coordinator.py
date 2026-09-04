@@ -14,6 +14,8 @@ from homeassistant.helpers.issue_registry import IssueSeverity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    CONF_GRID_EXPORT_POWER_ENTITY,
+    CONF_GRID_IMPORT_POWER_ENTITY,
     CONF_GRID_POWER_ENTITY,
     CONF_HOST,
     CONF_LOAD_POWER_ENTITY,
@@ -84,6 +86,8 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             entry.options.get(CONF_PV_POWER_ENTITY),
             entry.options.get(CONF_LOAD_POWER_ENTITY),
             entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS),
+            entry.options.get(CONF_GRID_IMPORT_POWER_ENTITY),
+            entry.options.get(CONF_GRID_EXPORT_POWER_ENTITY),
         )
         self._price_provider = HomeAssistantEntityPriceProvider(
             hass,

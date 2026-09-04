@@ -18,6 +18,8 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    CONF_GRID_EXPORT_POWER_ENTITY,
+    CONF_GRID_IMPORT_POWER_ENTITY,
     CONF_GRID_POWER_ENTITY,
     CONF_HOST,
     CONF_LOAD_POWER_ENTITY,
@@ -111,9 +113,18 @@ class PowerManagerOptionsFlow(OptionsFlow):
         """Update the coordinator polling interval."""
         errors: dict[str, str] = {}
         if user_input is not None:
+            grid_power_entity = user_input.get(CONF_GRID_POWER_ENTITY)
+            grid_import_power_entity = user_input.get(CONF_GRID_IMPORT_POWER_ENTITY)
+            grid_export_power_entity = user_input.get(CONF_GRID_EXPORT_POWER_ENTITY)
             price_entity = user_input.get(CONF_PRICE_ENTITY)
             static_price = user_input.get(CONF_STATIC_PRICE_PER_KWH)
-            if price_entity and static_price is not None:
+            if grid_power_entity and (
+                grid_import_power_entity or grid_export_power_entity
+            ):
+                errors["base"] = "grid_power_source_conflict"
+            elif bool(grid_import_power_entity) != bool(grid_export_power_entity):
+                errors["base"] = "incomplete_grid_power_pair"
+            elif price_entity and static_price is not None:
                 errors["base"] = "price_source_conflict"
             elif static_price is not None:
                 try:
@@ -137,6 +148,14 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 ),
                 vol.Optional(CONF_GRID_POWER_ENTITY, default=self._option(CONF_GRID_POWER_ENTITY)):
                     _POWER_ENTITY_SELECTOR,
+                vol.Optional(
+                    CONF_GRID_IMPORT_POWER_ENTITY,
+                    default=self._option(CONF_GRID_IMPORT_POWER_ENTITY),
+                ): _POWER_ENTITY_SELECTOR,
+                vol.Optional(
+                    CONF_GRID_EXPORT_POWER_ENTITY,
+                    default=self._option(CONF_GRID_EXPORT_POWER_ENTITY),
+                ): _POWER_ENTITY_SELECTOR,
                 vol.Optional(CONF_PV_POWER_ENTITY, default=self._option(CONF_PV_POWER_ENTITY)):
                     _POWER_ENTITY_SELECTOR,
                 vol.Optional(CONF_LOAD_POWER_ENTITY, default=self._option(CONF_LOAD_POWER_ENTITY)):

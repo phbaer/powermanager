@@ -25,11 +25,15 @@ class HomeAssistantEntityGridProvider:
         pv_entity: str | None = None,
         load_entity: str | None = None,
         max_age_seconds: int = 120,
+        grid_import_entity: str | None = None,
+        grid_export_entity: str | None = None,
     ) -> None:
         self._hass = hass
         self._max_age_seconds = max_age_seconds
         self._entities = {
             "grid_power_w": grid_entity,
+            "grid_import_power_w": grid_import_entity,
+            "grid_export_power_w": grid_export_entity,
             "pv_power_w": pv_entity,
             "load_power_w": load_entity,
         }
@@ -58,9 +62,15 @@ class HomeAssistantEntityGridProvider:
                 max_age_seconds=self._max_age_seconds,
             )
         )
+        grid_power = values["grid_power_w"]
+        import_power = values["grid_import_power_w"]
+        export_power = values["grid_export_power_w"]
+        if grid_power is None and import_power is not None and export_power is not None:
+            grid_power = import_power - export_power
+
         return GridState(
             timestamp=datetime.now(UTC),
-            grid_power_w=values["grid_power_w"],
+            grid_power_w=grid_power,
             pv_power_w=values["pv_power_w"],
             load_power_w=values["load_power_w"],
             communication_state=communication,

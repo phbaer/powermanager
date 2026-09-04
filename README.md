@@ -51,6 +51,12 @@ Assistant helper. A market-price entity must expose an explicit
 currency-per-energy unit: prices in `/MWh` are normalized to `/kWh`, while
 unitless or ambiguous prices are not used.
 
+For grid exchange, configure either one signed instantaneous-power entity
+(positive import, negative export), or both separate import and export power
+entities. The latter normally map to OBIS `1.7.0` and `2.7.0`. OBIS `1.8.0`
+and `2.8.0` are cumulative energy counters, so they are deliberately not
+accepted as grid-power sources.
+
 The options flow also accepts local remaining-PV and expected-remaining-load
 forecast entities. They must expose Wh, kWh, or MWh and are used only for
 simulation/policy eligibility; neither forecast data nor a policy can enable a
