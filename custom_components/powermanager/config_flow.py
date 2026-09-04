@@ -123,7 +123,7 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 vol.Optional(
                     CONF_PRICE_ENTITY,
                     default=self._option(CONF_PRICE_ENTITY),
-                ): _SENSOR_ENTITY_SELECTOR,
+                ): _PRICE_ENTITY_SELECTOR,
                 vol.Optional(
                     CONF_REMAINING_PV_FORECAST_ENTITY,
                     default=self._option(CONF_REMAINING_PV_FORECAST_ENTITY),
@@ -159,3 +159,6 @@ _ENERGY_ENTITY_SELECTOR = EntitySelector(
     EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.ENERGY)
 )
 _SENSOR_ENTITY_SELECTOR = EntitySelector(EntitySelectorConfig(domain="sensor"))
+_PRICE_ENTITY_SELECTOR = EntitySelector(
+    EntitySelectorConfig(domain=["sensor", "input_number"])
+)
