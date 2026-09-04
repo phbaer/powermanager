@@ -20,7 +20,12 @@ classifiers = [
 [project.optional-dependencies]
 sma = ["pymodbus==3.11.1"]
 rules = ["PyYAML>=6.0"]
-dev = ["pytest>=8.0", "ruff>=0.9", "PyYAML>=6.0"]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.9",
+    "PyYAML>=6.0",
+    "pytest-homeassistant-custom-component>=0.13",
+]
 
 [project.scripts]
 powermanager = "powermanager_core.cli:main"
@@ -32,8 +37,10 @@ package-dir = {"" = "custom_components/powermanager/core"}
 where = ["custom_components/powermanager/core"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests/core"]
-pythonpath = ["custom_components/powermanager/core"]
+testpaths = ["tests/core", "tests/homeassistant"]
+pythonpath = ["custom_components/powermanager/core", "."]
+asyncio_default_fixture_loop_scope = "function"
+asyncio_mode = "auto"
 
 [tool.ruff]
 target-version = "py312"
