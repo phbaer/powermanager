@@ -49,6 +49,11 @@ power is normalized from kW to W. A tariff entity must expose an explicit
 currency-per-energy unit: prices in `/MWh` are normalized to `/kWh`, while
 unitless or ambiguous prices are not used.
 
+The options flow also accepts local remaining-PV and expected-remaining-load
+forecast entities. They must expose Wh, kWh, or MWh and are used only for
+simulation/policy eligibility; neither forecast data nor a policy can enable a
+device write.
+
 `powermanager commission` performs a read-only preflight of the Sunny Island's
 external-setpoint and fallback configuration. It never sends a setpoint or changes
 an inverter parameter.

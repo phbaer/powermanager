@@ -49,6 +49,15 @@ ineligible. Hysteresis and minimum hold times prevent rapid toggling. The
 default mode is simulation/dry-run; execution requires an explicit control
 enable switch and a valid safety configuration.
 
+## Forecast inputs
+
+The Home Assistant options flow can use existing local entities for remaining
+PV forecast and expected remaining load. Values must have an explicit
+Wh/kWh/MWh unit and are normalized to kWh. A rule can use
+`forecast_surplus_above_kwh`; it is eligible only when both fresh values are
+available. This is a planning/simulation input, not authorization for active
+control.
+
 ## Control milestones
 
 1. Define typed conditions/actions and deterministic policy evaluation.
