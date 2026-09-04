@@ -1097,3 +1097,65 @@ The first milestone is complete when:
 - it exposes correct read-only battery state,
 - the same protocol library can run independently of Home Assistant,
 - and there is no active battery-control code path enabled.
+
+---
+
+# Current implementation status (2026-09-04)
+
+The repository has progressed beyond the original monitor-only skeleton. It is
+now `powermanager`, with a reusable core under
+`custom_components/powermanager/core/powermanager_core` and a HACS-compatible
+Home Assistant integration under `custom_components/powermanager`.
+
+Implemented and tested:
+
+- UV-managed project (Python 3.12) with GitHub and Forgejo workflows.
+- Read-only SMA Sunny Island Modbus TCP backend and normalized battery models.
+- Home Assistant config/options flow, coordinator, sensors, diagnostics, and
+  optional HA providers for grid/PV/load and market price.
+- Passive Speedwire listener and unicast relay tooling.
+- Declarative YAML rules, deterministic policy evaluation, safety validation,
+  hold/cooldown handling, simulation runtime, and watchdog.
+- Guarded Sunny Island command adapter for the documented control/fallback
+  registers, cyclic heartbeat, bounded duration, and restore-normal operation.
+- Passive Speedwire ownership warning for non-Sunny-Island senders.
+- Rule validation and a read-only CLI commissioning preflight.
+
+The live installation at `10.0.1.240` was queried read-only. It identified as
+SI4.4M-12 (`9332`), in parallel-grid operation, with a 30% dynamic discharge
+floor. External setpoint mode is configured (`40210=1079`), fallback behavior is
+apply-fallback (`41193=2507`), timeout is 300 seconds, and fallback maximum
+power is 6000 W. The commissioning preflight passed. No write has ever been
+sent by PowerManager.
+
+## Safety boundary and remaining blockers
+
+Production control is still disabled. The write adapter is not connected to the
+Home Assistant coordinator or an automatic control loop. The Speedwire warning
+is conservative: any non-Sunny-Island sender may be a Home Manager or another
+SMA device and must be treated as a possible competing controller.
+
+Before enabling a live setpoint:
+
+1. Confirm whether the Sunny Home Manager currently owns active-power control.
+2. Confirm single-phase or three-phase single-cluster topology; multicluster
+   Modbus setpoint control is not supported by the SMA documentation.
+3. Confirm a physical emergency-stop procedure and supervised test window.
+4. Record the original operating mode and fallback settings.
+5. Test a small bounded setpoint, heartbeat loss, TCP disconnect, process exit,
+   inverter restart, fallback behavior, and restore-normal operation.
+6. Decide whether the current 300-second timeout is acceptable; any change must
+   be deliberate and verified on the device.
+
+After commissioning, wire the production actuator into the control runtime and
+add explicit Home Assistant ownership confirmation, control UI, and services.
+Separate follow-up work includes full Speedwire `0x6069` decoding, HA fixture
+tests and hassfest validation, tariff-unit normalization, forecast providers,
+and additional battery/meter backends.
+
+## Handoff instructions
+
+Run `uv sync --extra sma --extra dev`, then `uv run pytest` and
+`uv run ruff check .`. Use `uv run powermanager commission --host 10.0.1.240`
+for a read-only preflight. Do not add a live-write command or enable the adapter
+without resolving the blockers above and documenting observed recovery behavior.
