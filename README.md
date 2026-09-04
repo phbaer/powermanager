@@ -47,6 +47,21 @@ an inverter parameter.
 `speedwire-capture` passively prints validated SMA multicast frames for protocol
 analysis; it does not transmit packets or decode unverified measurement offsets.
 
+### Speedwire capture troubleshooting
+
+If the Home Manager is transmitting but capture is empty, check the host
+firewall. UFW commonly blocks SMA multicast UDP even when the switch has IGMP
+snooping disabled. For a host whose LAN interface is
+`enp0s13f0u1u4`, allow only the Home Manager sender and Speedwire port:
+
+```bash
+sudo ufw allow in on enp0s13f0u1u4 from 10.0.1.192 to any port 9522 proto udp
+```
+
+Adjust the interface and Home Manager address for your network. The rule is
+optional when the host firewall is disabled; do not broadly expose UDP/9522 to
+untrusted networks.
+
 For a remote Home Assistant host, `scripts/speedwire-relay.py` can run on a LAN-side
 machine and forward validated frames over unicast UDP:
 
