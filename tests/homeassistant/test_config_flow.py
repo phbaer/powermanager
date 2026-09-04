@@ -50,4 +50,5 @@ async def test_options_flow_accepts_empty_optional_telemetry_sources() -> None:
     result = await flow.async_step_init()
     data = result["data_schema"]({"scan_interval": 30, "telemetry_max_age": 120})
 
-    assert data == {"scan_interval": 30, "telemetry_max_age": 120}
+    assert data["scan_interval"] == 30
+    assert data["telemetry_max_age"] == 120

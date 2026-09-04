@@ -14,10 +14,12 @@ from homeassistant.helpers.issue_registry import IssueSeverity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    CONF_ESTIMATE_REMAINING_LOAD,
     CONF_GRID_EXPORT_POWER_ENTITY,
     CONF_GRID_IMPORT_POWER_ENTITY,
     CONF_GRID_POWER_ENTITY,
     CONF_HOST,
+    CONF_LOAD_FORECAST_HISTORY_DAYS,
     CONF_LOAD_POWER_ENTITY,
     CONF_PORT,
     CONF_PRICE_ENTITY,
@@ -100,6 +102,9 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             entry.options.get(CONF_REMAINING_PV_FORECAST_ENTITY),
             entry.options.get(CONF_REMAINING_LOAD_FORECAST_ENTITY),
             entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS),
+            entry.options.get(CONF_LOAD_POWER_ENTITY),
+            entry.options.get(CONF_ESTIMATE_REMAINING_LOAD, False),
+            int(entry.options.get(CONF_LOAD_FORECAST_HISTORY_DAYS, 7)),
         )
         self._speedwire_monitor = ExternalControllerMonitor(self._config.host)
         self._speedwire_task: asyncio.Task[None] | None = None

@@ -10,6 +10,8 @@ from homeassistant.config_entries import ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.selector import (
+    BooleanSelector,
+    BooleanSelectorConfig,
     EntitySelector,
     EntitySelectorConfig,
     NumberSelector,
@@ -18,10 +20,12 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    CONF_ESTIMATE_REMAINING_LOAD,
     CONF_GRID_EXPORT_POWER_ENTITY,
     CONF_GRID_IMPORT_POWER_ENTITY,
     CONF_GRID_POWER_ENTITY,
     CONF_HOST,
+    CONF_LOAD_FORECAST_HISTORY_DAYS,
     CONF_LOAD_POWER_ENTITY,
     CONF_PORT,
     CONF_PRICE_ENTITY,
@@ -32,13 +36,16 @@ from .const import (
     CONF_STATIC_PRICE_PER_KWH,
     CONF_TELEMETRY_MAX_AGE,
     CONF_UNIT_ID,
+    DEFAULT_LOAD_FORECAST_HISTORY_DAYS,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL_SECONDS,
     DEFAULT_TELEMETRY_MAX_AGE_SECONDS,
     DEFAULT_UNIT_ID,
     DOMAIN,
+    MAX_LOAD_FORECAST_HISTORY_DAYS,
     MAX_SCAN_INTERVAL_SECONDS,
     MAX_TELEMETRY_MAX_AGE_SECONDS,
+    MIN_LOAD_FORECAST_HISTORY_DAYS,
     MIN_SCAN_INTERVAL_SECONDS,
     MIN_TELEMETRY_MAX_AGE_SECONDS,
 )
@@ -116,6 +123,11 @@ class PowerManagerOptionsFlow(OptionsFlow):
             grid_power_entity = user_input.get(CONF_GRID_POWER_ENTITY)
             grid_import_power_entity = user_input.get(CONF_GRID_IMPORT_POWER_ENTITY)
             grid_export_power_entity = user_input.get(CONF_GRID_EXPORT_POWER_ENTITY)
+            load_power_entity = user_input.get(CONF_LOAD_POWER_ENTITY) or self._option(
+                CONF_LOAD_POWER_ENTITY
+            )
+            estimate_remaining_load = user_input.get(CONF_ESTIMATE_REMAINING_LOAD, False)
+            remaining_load_forecast_entity = user_input.get(CONF_REMAINING_LOAD_FORECAST_ENTITY)
             price_entity = user_input.get(CONF_PRICE_ENTITY)
             static_price = user_input.get(CONF_STATIC_PRICE_PER_KWH)
             if static_price == "":
@@ -127,6 +139,10 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 errors["base"] = "grid_power_source_conflict"
             elif bool(grid_import_power_entity) != bool(grid_export_power_entity):
                 errors["base"] = "incomplete_grid_power_pair"
+            elif estimate_remaining_load and remaining_load_forecast_entity:
+                errors["base"] = "load_forecast_source_conflict"
+            elif estimate_remaining_load and not load_power_entity:
+                errors["base"] = "load_forecast_requires_load_power"
             elif price_entity and static_price is not None:
                 errors["base"] = "price_source_conflict"
             elif static_price is not None:
@@ -162,6 +178,17 @@ class PowerManagerOptionsFlow(OptionsFlow):
                     _POWER_ENTITY_SELECTOR,
                 self._optional_field(CONF_LOAD_POWER_ENTITY, self._option(CONF_LOAD_POWER_ENTITY)):
                     _POWER_ENTITY_SELECTOR,
+                vol.Optional(
+                    CONF_ESTIMATE_REMAINING_LOAD,
+                    default=self._config_entry.options.get(CONF_ESTIMATE_REMAINING_LOAD, False),
+                ): _BOOLEAN_SELECTOR,
+                vol.Required(
+                    CONF_LOAD_FORECAST_HISTORY_DAYS,
+                    default=self._config_entry.options.get(
+                        CONF_LOAD_FORECAST_HISTORY_DAYS,
+                        DEFAULT_LOAD_FORECAST_HISTORY_DAYS,
+                    ),
+                ): _LOAD_FORECAST_DAYS_SELECTOR,
                 self._optional_field(CONF_PRICE_ENTITY, self._option(CONF_PRICE_ENTITY)):
                     _PRICE_ENTITY_SELECTOR,
                 self._optional_field(CONF_STATIC_PRICE_PER_KWH, static_price_default):
@@ -228,4 +255,13 @@ _PRICE_ENTITY_SELECTOR = EntitySelector(
 )
 _STATIC_PRICE_SELECTOR = NumberSelector(
     NumberSelectorConfig(min=0, step=0.001, mode=NumberSelectorMode.BOX)
+)
+_BOOLEAN_SELECTOR = BooleanSelector(BooleanSelectorConfig())
+_LOAD_FORECAST_DAYS_SELECTOR = NumberSelector(
+    NumberSelectorConfig(
+        min=MIN_LOAD_FORECAST_HISTORY_DAYS,
+        max=MAX_LOAD_FORECAST_HISTORY_DAYS,
+        step=1,
+        mode=NumberSelectorMode.BOX,
+    )
 )

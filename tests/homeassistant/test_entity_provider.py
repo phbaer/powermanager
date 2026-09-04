@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
+from homeassistant.core import State
+
 from custom_components.powermanager.ha_entity_provider import HomeAssistantEntityGridProvider
 from custom_components.powermanager.ha_forecast_provider import HomeAssistantEntityForecastProvider
 
@@ -37,3 +41,28 @@ async def test_separate_pv_forecasts_are_summed(hass) -> None:
 
     assert provider.configured
     assert state.remaining_pv_kwh == 3.25
+
+
+def test_historical_load_energy_is_integrated_as_piecewise_constant_power() -> None:
+    """Load history is integrated from W/kW samples into remaining kWh."""
+    start = datetime(2026, 9, 3, 15, tzinfo=UTC)
+    states = [
+        State(
+            "sensor.load_power",
+            "1",
+            {"unit_of_measurement": "kW"},
+            last_updated=start,
+        ),
+        State(
+            "sensor.load_power",
+            "2000",
+            {"unit_of_measurement": "W"},
+            last_updated=start + timedelta(hours=1),
+        ),
+    ]
+
+    energy = HomeAssistantEntityForecastProvider._integrate_power_states(
+        states, start, start + timedelta(hours=2)
+    )
+
+    assert energy == 3

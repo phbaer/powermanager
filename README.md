@@ -63,6 +63,12 @@ Separate PV forecasts are summed only when every selected value is fresh. They
 are used only for simulation/policy eligibility; neither forecast data nor a
 policy can enable a device write.
 
+Instead of supplying an expected-load forecast entity, PowerManager can estimate
+the remaining load until local midnight from the selected whole-home load-power
+entity. It averages the same remainder of each of the configured number of
+complete prior days (seven by default) using local Recorder history. The
+estimate is withheld if any required day is incomplete, stale, or invalid.
+
 `powermanager commission` performs a read-only preflight of the Sunny Island's
 external-setpoint and fallback configuration. It never sends a setpoint or changes
 an inverter parameter.

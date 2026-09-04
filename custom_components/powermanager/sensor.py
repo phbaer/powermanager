@@ -123,6 +123,26 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
         if coordinator.data.energy_state.price
         else None,
     ),
+    PowerManagerSensorDescription(
+        key="remaining_pv_forecast",
+        translation_key="remaining_pv_forecast",
+        native_unit_of_measurement="kWh",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.energy_state.forecast.remaining_pv_kwh
+        if coordinator.data.energy_state.forecast
+        else None,
+    ),
+    PowerManagerSensorDescription(
+        key="expected_remaining_load",
+        translation_key="expected_remaining_load",
+        native_unit_of_measurement="kWh",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: (
+            coordinator.data.energy_state.forecast.expected_remaining_load_kwh
+            if coordinator.data.energy_state.forecast
+            else None
+        ),
+    ),
 )
 
 
