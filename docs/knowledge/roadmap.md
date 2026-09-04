@@ -10,11 +10,11 @@ status: draft
 
 1. Add Home Assistant fixture tests for options, entity conversion, unavailable
    states, reload, and diagnostics redaction.
-2. Add stale-data and retry/backoff handling to the normalized energy state.
+2. Add retry/backoff handling to the normalized energy state. Stale/offline
+   source classification and tariff-unit normalization are implemented.
 3. Decode Speedwire `0x6069` records only from reproducible fixtures captured
    from supported devices.
-4. Add CI validation for `hassfest` and HACS. (HACS plus manifest/translation
-   structure checks are now present; full hassfest remains pending.)
+4. Keep CI validation for `hassfest` and HACS healthy. Both are configured.
 5. Add delayed charging policies using read-only telemetry.
 
 # Explicitly gated work

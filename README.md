@@ -44,6 +44,11 @@ The polling interval can be adjusted from the integration's Home Assistant optio
 flow (5–300 seconds). Connection details remain in the config entry and all device
 communication remains read-only.
 
+Optional grid/PV/load and tariff entities are accepted only while fresh. Grid
+power is normalized from kW to W. A tariff entity must expose an explicit
+currency-per-energy unit: prices in `/MWh` are normalized to `/kWh`, while
+unitless or ambiguous prices are not used.
+
 `powermanager commission` performs a read-only preflight of the Sunny Island's
 external-setpoint and fallback configuration. It never sends a setpoint or changes
 an inverter parameter.
@@ -92,3 +97,7 @@ raw frames are therefore not converted into grid or PV values yet.
 | SMA Sunny Island Modbus TCP | Read-only identity and battery measurements verified against an SI4.4M-12 |
 | SMA Sunny Home Manager / Speedwire | Planned passive telemetry provider |
 | Active battery control | Not implemented |
+
+Continuous integration runs unit tests, Ruff, HACS validation, and Home
+Assistant `hassfest`. Hardware commissioning is deliberately not a CI task and
+remains a supervised, read-only-first field procedure.

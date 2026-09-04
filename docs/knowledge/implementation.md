@@ -27,6 +27,15 @@ uv run powermanager status --host 10.0.1.240
 The integration options flow accepts entity IDs for grid, PV, and load power.
 Values are read from the HA state machine, converted from kW to W when needed,
 and exposed as read-only sensors. Empty fields leave `EnergyState.grid` unset.
+Sources older than the configured maximum age are classified as stale and are
+never supplied to a control policy. Market-price entities must state an explicit
+`/kWh` or `/MWh` unit; `/MWh` prices are normalized to `/kWh` and ambiguous
+unitless values are rejected.
+
+## CI validation
+
+GitHub Actions run core tests and Ruff, HACS validation, and Home Assistant
+`hassfest`. `hassfest` is scheduled daily as well as on integration changes.
 
 ## Speedwire relay
 
