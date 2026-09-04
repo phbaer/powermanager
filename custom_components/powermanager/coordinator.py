@@ -15,6 +15,7 @@ from homeassistant.helpers.issue_registry import IssueSeverity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    CONF_CONTROL_OWNERSHIP_CONFIRMED,
     CONF_ESTIMATE_REMAINING_LOAD,
     CONF_GRID_EXPORT_POWER_ENTITY,
     CONF_GRID_IMPORT_POWER_ENTITY,
@@ -68,6 +69,7 @@ class PowerManagerData:
     speedwire_sources: tuple[str, ...] = ()
     simulated_rule_id: str | None = None
     simulated_target_power_w: float | None = None
+    control_ownership_clear: bool = False
 
 
 class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
@@ -116,6 +118,9 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         self._speedwire_task: asyncio.Task[None] | None = None
         self._poll_seconds = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS)
         self._backoff = ExponentialBackoff(self._poll_seconds, MAX_SCAN_INTERVAL_SECONDS)
+        self._control_ownership_confirmed = entry.options.get(
+            CONF_CONTROL_OWNERSHIP_CONFIRMED, False
+        )
         rules_yaml = entry.options.get(CONF_RULES_YAML)
         self._rules = parse_rules_document(yaml.safe_load(rules_yaml)) if rules_yaml else ()
 
@@ -151,6 +156,7 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
                                 tuple(sorted(self._speedwire_monitor.observed_sources)),
                                 self.data.simulated_rule_id,
                                 self.data.simulated_target_power_w,
+                                self.data.control_ownership_clear,
                             )
                         )
         except asyncio.CancelledError:
@@ -206,6 +212,10 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             energy_state=energy_state,
             simulated_rule_id=intent.rule_id if intent else None,
             simulated_target_power_w=intent.target_power_w if intent else None,
+            control_ownership_clear=(
+                self._control_ownership_confirmed
+                and not self._speedwire_monitor.possible_external_controller
+            ),
         )
 
     def _schedule_retry(self) -> None:

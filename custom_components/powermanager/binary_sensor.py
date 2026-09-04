@@ -17,6 +17,7 @@ async def async_setup_entry(
 ) -> None:
     """Expose a warning when another SMA sender appears on Speedwire."""
     async_add_entities([ExternalControllerWarning(hass.data[DOMAIN][entry.entry_id], entry)])
+    async_add_entities([ControlOwnershipClear(hass.data[DOMAIN][entry.entry_id], entry)])
 
 
 class ExternalControllerWarning(CoordinatorEntity[PowerManagerCoordinator], BinarySensorEntity):
@@ -33,3 +34,19 @@ class ExternalControllerWarning(CoordinatorEntity[PowerManagerCoordinator], Bina
     def is_on(self) -> bool:
         """Return true when a non-Sunny-Island sender has been observed."""
         return self.coordinator.data.possible_external_controller
+
+
+class ControlOwnershipClear(CoordinatorEntity[PowerManagerCoordinator], BinarySensorEntity):
+    """Show whether the future control gate has passed ownership checks only."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "control_ownership_clear"
+
+    def __init__(self, coordinator: PowerManagerCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.unique_id or entry.entry_id}_control_ownership_clear"
+
+    @property
+    def is_on(self) -> bool:
+        """Return ownership eligibility; this never enables a write path."""
+        return self.coordinator.data.control_ownership_clear

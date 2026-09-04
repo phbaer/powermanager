@@ -23,6 +23,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    CONF_CONTROL_OWNERSHIP_CONFIRMED,
     CONF_ESTIMATE_REMAINING_LOAD,
     CONF_GRID_EXPORT_POWER_ENTITY,
     CONF_GRID_IMPORT_POWER_ENTITY,
@@ -192,6 +193,12 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 vol.Optional(
                     CONF_ESTIMATE_REMAINING_LOAD,
                     default=self._config_entry.options.get(CONF_ESTIMATE_REMAINING_LOAD, False),
+                ): _BOOLEAN_SELECTOR,
+                vol.Optional(
+                    CONF_CONTROL_OWNERSHIP_CONFIRMED,
+                    default=self._config_entry.options.get(
+                        CONF_CONTROL_OWNERSHIP_CONFIRMED, False
+                    ),
                 ): _BOOLEAN_SELECTOR,
                 vol.Required(
                     CONF_LOAD_FORECAST_HISTORY_DAYS,
