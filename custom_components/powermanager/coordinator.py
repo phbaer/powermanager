@@ -9,6 +9,8 @@ from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry
+from homeassistant.helpers.issue_registry import IssueSeverity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
@@ -116,6 +118,10 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             async with listener:
                 async for frame in listener.frames():
                     self._speedwire_monitor.observe(frame)
+                    if self._speedwire_monitor.possible_external_controller:
+                        self._create_issue(
+                            "possible_external_controller", "possible_external_controller"
+                        )
                     if self.data is not None:
                         self.async_set_updated_data(
                             PowerManagerData(
@@ -139,13 +145,16 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
                 battery_state = await client.read_state()
         except PowerManagerError as error:
             self._schedule_retry()
+            self._create_issue("communication_failure", "communication_failure")
             raise UpdateFailed(str(error)) from error
         except Exception as error:
             self._schedule_retry()
+            self._create_issue("communication_failure", "communication_failure")
             raise UpdateFailed(f"Unexpected PowerManager update failure: {error}") from error
 
         self._backoff.record_success()
         self.update_interval = timedelta(seconds=self._poll_seconds)
+        issue_registry.async_delete_issue(self.hass, DOMAIN, "communication_failure")
 
         grid_state = (
             await self._grid_provider.read_grid_state()
@@ -177,3 +186,14 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
     def _schedule_retry(self) -> None:
         """Increase only the next read delay; successful reads reset it."""
         self.update_interval = timedelta(seconds=self._backoff.record_failure())
+
+    def _create_issue(self, issue_id: str, translation_key: str) -> None:
+        """Surface safety-relevant telemetry state through Home Assistant Repairs."""
+        issue_registry.async_create_issue(
+            self.hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            severity=IssueSeverity.WARNING,
+            translation_key=translation_key,
+        )

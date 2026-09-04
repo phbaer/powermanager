@@ -53,5 +53,15 @@
       "load_power": {"name": "Load power"},
       "price": {"name": "Market price"}
     }
+  },
+  "issues": {
+    "communication_failure": {
+      "title": "Sunny Island communication failure",
+      "description": "PowerManager cannot read the Sunny Island. The integration remains monitor-only and retries with backoff."
+    },
+    "possible_external_controller": {
+      "title": "Possible competing SMA controller detected",
+      "description": "A non-Sunny-Island sender was observed on SMA Speedwire. Do not enable active control until ownership has been confirmed."
+    }
   }
 }

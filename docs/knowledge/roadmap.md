@@ -8,12 +8,12 @@ status: draft
 
 # Next milestones
 
-1. Add Home Assistant fixture tests for options, entity conversion, unavailable
-   states, reload, and diagnostics redaction.
+1. Expand Home Assistant tests beyond config-flow and diagnostics redaction to
+   cover options, entity conversion, unavailable states, and reload.
 2. Add retry/backoff handling to the normalized energy state. Stale/offline
    source classification and tariff-unit normalization are implemented.
-3. Decode Speedwire `0x6069` records only from reproducible fixtures captured
-   from supported devices.
+3. Validate semantic mappings for the structurally decoded Speedwire `0x6069`
+   records before converting them into grid/PV measurements.
 4. Keep CI validation for `hassfest` and HACS healthy. Both are configured.
 5. Add delayed charging policies using read-only telemetry.
 
