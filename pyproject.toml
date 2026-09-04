@@ -18,7 +18,9 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-sma = ["pymodbus==3.11.1"]
+sma = [
+    "pymodbus==3.15.0",
+]
 rules = ["PyYAML>=6.0"]
 dev = [
     "pytest>=8.0",
