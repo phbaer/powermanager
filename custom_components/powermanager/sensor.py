@@ -146,7 +146,7 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
     PowerManagerSensorDescription(
         key="simulated_rule",
         translation_key="simulated_rule",
-        value_fn=lambda coordinator: coordinator.data.simulated_rule_id,
+        value_fn=lambda coordinator: coordinator.data.simulated_rule_id or "No matching rule",
     ),
     PowerManagerSensorDescription(
         key="simulated_target_power",

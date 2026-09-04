@@ -78,7 +78,7 @@ class HomeAssistantEntityForecastProvider:
         if updated.tzinfo is None:
             updated = updated.replace(tzinfo=UTC)
         if communication_state_for_timestamp(
-            updated, now=now, max_age_seconds=self._max_age_seconds
+            updated, now=now, max_age_seconds=max(self._max_age_seconds, 7200)
         ) is not CommunicationState.ONLINE:
             return None, updated
         value = normalize_energy_kwh(state.state, state.attributes.get("unit_of_measurement"))

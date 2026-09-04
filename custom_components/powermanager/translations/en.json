@@ -52,7 +52,7 @@
           "telemetry_max_age": "Telemetry older than this is treated as stale and is excluded from policy evaluation.",
           "price_entity": "Current import price with an explicit currency/kWh or currency/MWh unit. Leave empty when using a fixed tariff.",
           "static_price_per_kwh": "Fixed contract import price in EUR per kWh. Leave empty when using a market-price entity. Only one price source can be configured.",
-          "remaining_pv_forecast_entity": "One or more remaining-energy forecasts for separate PV arrays or inverters, in Wh, kWh, or MWh. Values are combined only when every selected forecast is fresh. Use remaining forecasts, not lifetime energy meters.",
+          "remaining_pv_forecast_entity": "One or more remaining-energy forecasts for separate PV arrays or inverters, in Wh, kWh, or MWh. Values are combined only when every selected forecast is fresh (up to two hours old). Use remaining forecasts, not lifetime energy meters.",
           "remaining_load_forecast_entity": "Forecast energy still expected to be consumed during the planning period, in Wh, kWh, or MWh. Use a remaining forecast, not a cumulative meter."
           ,"rules_yaml": "Versioned YAML rules evaluated only for simulation. Rule execution and battery writes remain disabled."
         }
