@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
 
+from custom_components.powermanager.config_flow import PowerManagerOptionsFlow
 from custom_components.powermanager.const import DOMAIN
 from custom_components.powermanager.core.powermanager_core.models import CommunicationState
 from custom_components.powermanager.ha_price_provider import HomeAssistantEntityPriceProvider
@@ -40,3 +41,13 @@ async def test_static_price_does_not_require_a_home_assistant_entity(hass) -> No
     assert state.price_per_kwh == 0.32
     assert state.currency == "EUR/kWh"
     assert state.communication_state is CommunicationState.ONLINE
+
+
+async def test_options_flow_accepts_empty_optional_telemetry_sources() -> None:
+    """Unset optional fields must not be passed to selectors as null values."""
+    flow = PowerManagerOptionsFlow(Mock(options={}))
+
+    result = await flow.async_step_init()
+    data = result["data_schema"]({"scan_interval": 30, "telemetry_max_age": 120})
+
+    assert data == {"scan_interval": 30, "telemetry_max_age": 120}

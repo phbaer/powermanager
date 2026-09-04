@@ -118,6 +118,9 @@ class PowerManagerOptionsFlow(OptionsFlow):
             grid_export_power_entity = user_input.get(CONF_GRID_EXPORT_POWER_ENTITY)
             price_entity = user_input.get(CONF_PRICE_ENTITY)
             static_price = user_input.get(CONF_STATIC_PRICE_PER_KWH)
+            if static_price == "":
+                user_input.pop(CONF_STATIC_PRICE_PER_KWH, None)
+                static_price = None
             if grid_power_entity and (
                 grid_import_power_entity or grid_export_power_entity
             ):
@@ -140,41 +143,36 @@ class PowerManagerOptionsFlow(OptionsFlow):
         current_interval = self._config_entry.options.get(
             CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS
         )
+        static_price_default = self._option_number(CONF_STATIC_PRICE_PER_KWH)
         schema = vol.Schema(
             {
                 vol.Required(CONF_SCAN_INTERVAL, default=current_interval): vol.All(
                     vol.Coerce(int),
                     vol.Range(min=MIN_SCAN_INTERVAL_SECONDS, max=MAX_SCAN_INTERVAL_SECONDS),
                 ),
-                vol.Optional(CONF_GRID_POWER_ENTITY, default=self._option(CONF_GRID_POWER_ENTITY)):
+                self._optional_field(CONF_GRID_POWER_ENTITY, self._option(CONF_GRID_POWER_ENTITY)):
                     _POWER_ENTITY_SELECTOR,
-                vol.Optional(
-                    CONF_GRID_IMPORT_POWER_ENTITY,
-                    default=self._option(CONF_GRID_IMPORT_POWER_ENTITY),
+                self._optional_field(
+                    CONF_GRID_IMPORT_POWER_ENTITY, self._option(CONF_GRID_IMPORT_POWER_ENTITY)
                 ): _POWER_ENTITY_SELECTOR,
-                vol.Optional(
-                    CONF_GRID_EXPORT_POWER_ENTITY,
-                    default=self._option(CONF_GRID_EXPORT_POWER_ENTITY),
+                self._optional_field(
+                    CONF_GRID_EXPORT_POWER_ENTITY, self._option(CONF_GRID_EXPORT_POWER_ENTITY)
                 ): _POWER_ENTITY_SELECTOR,
-                vol.Optional(CONF_PV_POWER_ENTITY, default=self._option(CONF_PV_POWER_ENTITY)):
+                self._optional_field(CONF_PV_POWER_ENTITY, self._option(CONF_PV_POWER_ENTITY)):
                     _POWER_ENTITY_SELECTOR,
-                vol.Optional(CONF_LOAD_POWER_ENTITY, default=self._option(CONF_LOAD_POWER_ENTITY)):
+                self._optional_field(CONF_LOAD_POWER_ENTITY, self._option(CONF_LOAD_POWER_ENTITY)):
                     _POWER_ENTITY_SELECTOR,
-                vol.Optional(
-                    CONF_PRICE_ENTITY,
-                    default=self._option(CONF_PRICE_ENTITY),
-                ): _PRICE_ENTITY_SELECTOR,
-                vol.Optional(
-                    CONF_STATIC_PRICE_PER_KWH,
-                    default=self._option_number(CONF_STATIC_PRICE_PER_KWH),
-                ): _STATIC_PRICE_SELECTOR,
-                vol.Optional(
+                self._optional_field(CONF_PRICE_ENTITY, self._option(CONF_PRICE_ENTITY)):
+                    _PRICE_ENTITY_SELECTOR,
+                self._optional_field(CONF_STATIC_PRICE_PER_KWH, static_price_default):
+                    _STATIC_PRICE_SELECTOR,
+                self._optional_field(
                     CONF_REMAINING_PV_FORECAST_ENTITY,
-                    default=self._option_list(CONF_REMAINING_PV_FORECAST_ENTITY),
+                    self._option_list(CONF_REMAINING_PV_FORECAST_ENTITY),
                 ): _PV_FORECAST_ENTITY_SELECTOR,
-                vol.Optional(
+                self._optional_field(
                     CONF_REMAINING_LOAD_FORECAST_ENTITY,
-                    default=self._option(CONF_REMAINING_LOAD_FORECAST_ENTITY),
+                    self._option(CONF_REMAINING_LOAD_FORECAST_ENTITY),
                 ): _ENERGY_ENTITY_SELECTOR,
                 vol.Required(
                     CONF_TELEMETRY_MAX_AGE,
@@ -194,6 +192,11 @@ class PowerManagerOptionsFlow(OptionsFlow):
     def _option(self, key: str) -> str | None:
         """Return an optional selector default without presenting an empty value."""
         return self._config_entry.options.get(key) or None
+
+    @staticmethod
+    def _optional_field(key: str, default: Any) -> vol.Optional:
+        """Create an optional form field without injecting an invalid null default."""
+        return vol.Optional(key) if default is None else vol.Optional(key, default=default)
 
     def _option_number(self, key: str) -> float | None:
         """Return an optional numeric default, preserving zero as a valid value."""
