@@ -5,9 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.config_entries import ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.selector import EntitySelector, EntitySelectorConfig
 
 from .const import (
     CONF_GRID_POWER_ENTITY,
@@ -112,30 +114,24 @@ class PowerManagerOptionsFlow(OptionsFlow):
                     vol.Coerce(int),
                     vol.Range(min=MIN_SCAN_INTERVAL_SECONDS, max=MAX_SCAN_INTERVAL_SECONDS),
                 ),
-                vol.Optional(
-                    CONF_GRID_POWER_ENTITY,
-                    default=self._config_entry.options.get(CONF_GRID_POWER_ENTITY, ""),
-                ): str,
-                vol.Optional(
-                    CONF_PV_POWER_ENTITY,
-                    default=self._config_entry.options.get(CONF_PV_POWER_ENTITY, ""),
-                ): str,
-                vol.Optional(
-                    CONF_LOAD_POWER_ENTITY,
-                    default=self._config_entry.options.get(CONF_LOAD_POWER_ENTITY, ""),
-                ): str,
+                vol.Optional(CONF_GRID_POWER_ENTITY, default=self._option(CONF_GRID_POWER_ENTITY)):
+                    _POWER_ENTITY_SELECTOR,
+                vol.Optional(CONF_PV_POWER_ENTITY, default=self._option(CONF_PV_POWER_ENTITY)):
+                    _POWER_ENTITY_SELECTOR,
+                vol.Optional(CONF_LOAD_POWER_ENTITY, default=self._option(CONF_LOAD_POWER_ENTITY)):
+                    _POWER_ENTITY_SELECTOR,
                 vol.Optional(
                     CONF_PRICE_ENTITY,
-                    default=self._config_entry.options.get(CONF_PRICE_ENTITY, ""),
-                ): str,
+                    default=self._option(CONF_PRICE_ENTITY),
+                ): _SENSOR_ENTITY_SELECTOR,
                 vol.Optional(
                     CONF_REMAINING_PV_FORECAST_ENTITY,
-                    default=self._config_entry.options.get(CONF_REMAINING_PV_FORECAST_ENTITY, ""),
-                ): str,
+                    default=self._option(CONF_REMAINING_PV_FORECAST_ENTITY),
+                ): _ENERGY_ENTITY_SELECTOR,
                 vol.Optional(
                     CONF_REMAINING_LOAD_FORECAST_ENTITY,
-                    default=self._config_entry.options.get(CONF_REMAINING_LOAD_FORECAST_ENTITY, ""),
-                ): str,
+                    default=self._option(CONF_REMAINING_LOAD_FORECAST_ENTITY),
+                ): _ENERGY_ENTITY_SELECTOR,
                 vol.Required(
                     CONF_TELEMETRY_MAX_AGE,
                     default=self._config_entry.options.get(
@@ -150,3 +146,16 @@ class PowerManagerOptionsFlow(OptionsFlow):
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)
+
+    def _option(self, key: str) -> str | None:
+        """Return an optional selector default without presenting an empty value."""
+        return self._config_entry.options.get(key) or None
+
+
+_POWER_ENTITY_SELECTOR = EntitySelector(
+    EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.POWER)
+)
+_ENERGY_ENTITY_SELECTOR = EntitySelector(
+    EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.ENERGY)
+)
+_SENSOR_ENTITY_SELECTOR = EntitySelector(EntitySelectorConfig(domain="sensor"))

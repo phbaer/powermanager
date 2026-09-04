@@ -68,8 +68,12 @@ def normalize_power_state(
         return None
     if not math.isfinite(value):
         return None
-    unit = (state.attributes.get("unit_of_measurement") or "W").lower()
-    return value * 1000 if unit in {"kw", "kilowatt", "kilowatts"} else value
+    unit = (state.attributes.get("unit_of_measurement") or "W").strip().lower()
+    if unit in {"w", "watt", "watts"}:
+        return value
+    if unit in {"kw", "kilowatt", "kilowatts"}:
+        return value * 1000
+    return None
 
 
 def normalize_price_per_kwh(value: Any, unit: str | None) -> tuple[float, str | None] | None:

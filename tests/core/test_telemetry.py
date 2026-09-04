@@ -25,6 +25,14 @@ def test_normalize_power_state_rejects_stale_and_unavailable() -> None:
     assert normalize_power_state(unavailable, now=now, max_age_seconds=120) is None
 
 
+def test_normalize_power_state_rejects_wrong_units() -> None:
+    now = datetime.now(UTC)
+    voltage = SimpleNamespace(
+        state="230", attributes={"unit_of_measurement": "V"}, last_updated=now
+    )
+    assert normalize_power_state(voltage, now=now, max_age_seconds=120) is None
+
+
 def test_freshness_distinguishes_offline_from_stale() -> None:
     now = datetime.now(UTC)
     assert (

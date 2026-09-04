@@ -21,7 +21,7 @@
     "step": {
       "init": {
         "title": "Polling settings",
-        "description": "Choose how often PowerManager reads the Sunny Island.",
+        "description": "Choose how often PowerManager reads the Sunny Island. Power and forecast selectors are unit-filtered. Market prices must use an explicit /kWh or /MWh unit.",
         "data": {
           "scan_interval": "Polling interval (seconds)",
           "grid_power_entity": "Grid power entity",
