@@ -26,6 +26,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL_SECONDS,
     DEFAULT_TELEMETRY_MAX_AGE_SECONDS,
     DOMAIN,
+    MAX_SCAN_INTERVAL_SECONDS,
 )
 from .core.powermanager_core.backends.sma_speedwire import (
     ExternalControllerMonitor,
@@ -37,6 +38,7 @@ from .core.powermanager_core.backends.sma_sunny_island import (
 )
 from .core.powermanager_core.exceptions import PowerManagerError
 from .core.powermanager_core.models import BatteryState, DeviceInfo, EnergyState
+from .core.powermanager_core.telemetry import ExponentialBackoff
 from .ha_entity_provider import HomeAssistantEntityGridProvider
 from .ha_forecast_provider import HomeAssistantEntityForecastProvider
 from .ha_price_provider import HomeAssistantEntityPriceProvider
@@ -93,6 +95,8 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         )
         self._speedwire_monitor = ExternalControllerMonitor(self._config.host)
         self._speedwire_task: asyncio.Task[None] | None = None
+        self._poll_seconds = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS)
+        self._backoff = ExponentialBackoff(self._poll_seconds, MAX_SCAN_INTERVAL_SECONDS)
 
     def start_speedwire_monitor(self) -> None:
         """Start passive multicast observation without affecting Modbus polling."""
@@ -134,9 +138,14 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
                 device_info = await client.get_device_info()
                 battery_state = await client.read_state()
         except PowerManagerError as error:
+            self._schedule_retry()
             raise UpdateFailed(str(error)) from error
         except Exception as error:
+            self._schedule_retry()
             raise UpdateFailed(f"Unexpected PowerManager update failure: {error}") from error
+
+        self._backoff.record_success()
+        self.update_interval = timedelta(seconds=self._poll_seconds)
 
         grid_state = (
             await self._grid_provider.read_grid_state()
@@ -164,3 +173,7 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
                 forecast=forecast_state,
             ),
         )
+
+    def _schedule_retry(self) -> None:
+        """Increase only the next read delay; successful reads reset it."""
+        self.update_interval = timedelta(seconds=self._backoff.record_failure())

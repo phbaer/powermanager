@@ -9,6 +9,31 @@ from typing import Any
 from .models import CommunicationState
 
 
+class ExponentialBackoff:
+    """Bound reconnect delays after consecutive read failures."""
+
+    def __init__(self, base_seconds: float, maximum_seconds: float) -> None:
+        if base_seconds <= 0 or maximum_seconds < base_seconds:
+            raise ValueError("backoff bounds must be positive and ordered")
+        self._base_seconds = base_seconds
+        self._maximum_seconds = maximum_seconds
+        self._failures = 0
+
+    @property
+    def failures(self) -> int:
+        """Return the number of consecutive failures."""
+        return self._failures
+
+    def record_failure(self) -> float:
+        """Record one failure and return the bounded next retry delay."""
+        self._failures += 1
+        return min(self._base_seconds * 2 ** (self._failures - 1), self._maximum_seconds)
+
+    def record_success(self) -> None:
+        """Reset retry delay after a successful read."""
+        self._failures = 0
+
+
 def communication_state_for_timestamp(
     timestamp: datetime | None, *, now: datetime, max_age_seconds: int
 ) -> CommunicationState:

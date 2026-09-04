@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from powermanager_core.models import CommunicationState
 from powermanager_core.telemetry import (
+    ExponentialBackoff,
     communication_state_for_timestamp,
     normalize_energy_kwh,
     normalize_power_state,
@@ -48,3 +49,11 @@ def test_energy_normalization_requires_an_explicit_energy_unit() -> None:
     assert normalize_energy_kwh("1500", "Wh") == 1.5
     assert normalize_energy_kwh("1.5", "MWh") == 1500
     assert normalize_energy_kwh("1.5", None) is None
+
+
+def test_backoff_is_bounded_and_resets_after_success() -> None:
+    backoff = ExponentialBackoff(5, 20)
+    assert [backoff.record_failure() for _ in range(4)] == [5, 10, 20, 20]
+    assert backoff.failures == 4
+    backoff.record_success()
+    assert backoff.failures == 0
