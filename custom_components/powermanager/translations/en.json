@@ -36,6 +36,7 @@
           "static_price_per_kwh": "Fixed import price (EUR/kWh)",
           "remaining_pv_forecast_entity": "Remaining PV energy forecast entities",
           "remaining_load_forecast_entity": "Expected remaining load energy entity"
+          ,"rules_yaml": "Simulation rules (YAML)"
         },
         "data_description": {
           "scan_interval": "Seconds between read-only Sunny Island polls.",
@@ -51,6 +52,7 @@
           "static_price_per_kwh": "Fixed contract import price in EUR per kWh. Leave empty when using a market-price entity. Only one price source can be configured.",
           "remaining_pv_forecast_entity": "One or more remaining-energy forecasts for separate PV arrays or inverters, in Wh, kWh, or MWh. Values are combined only when every selected forecast is fresh. Use remaining forecasts, not lifetime energy meters.",
           "remaining_load_forecast_entity": "Forecast energy still expected to be consumed during the planning period, in Wh, kWh, or MWh. Use a remaining forecast, not a cumulative meter."
+          ,"rules_yaml": "Versioned YAML rules evaluated only for simulation. Rule execution and battery writes remain disabled."
         }
       }
     },
@@ -61,6 +63,7 @@
       "incomplete_grid_power_pair": "Configure both grid import power and grid export power, or leave both empty.",
       "load_forecast_source_conflict": "Choose either an explicit remaining-load forecast entity or historical load estimation, not both.",
       "load_forecast_requires_load_power": "Historical load estimation requires a whole-home load power entity."
+      ,"invalid_rules": "Rules must be valid simulation-only YAML with version: 1 and enabled: false."
     }
   },
   "entity": {
@@ -82,6 +85,9 @@
       "price": {"name": "Market price"},
       "remaining_pv_forecast": {"name": "Remaining PV forecast"},
       "expected_remaining_load": {"name": "Expected remaining load"}
+      ,"simulated_rule": {"name": "Simulated matching rule"},
+      "simulated_target_power": {"name": "Simulated target battery power"},
+      "speedwire_source_count": {"name": "Observed SMA Speedwire sources"}
     }
   },
   "issues": {

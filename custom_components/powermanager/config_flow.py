@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
+import yaml
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.config_entries import ConfigFlow, OptionsFlow
 from homeassistant.core import callback
@@ -17,6 +18,8 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
 )
 
 from .const import (
@@ -32,6 +35,7 @@ from .const import (
     CONF_PV_POWER_ENTITY,
     CONF_REMAINING_LOAD_FORECAST_ENTITY,
     CONF_REMAINING_PV_FORECAST_ENTITY,
+    CONF_RULES_YAML,
     CONF_SCAN_INTERVAL,
     CONF_STATIC_PRICE_PER_KWH,
     CONF_TELEMETRY_MAX_AGE,
@@ -53,6 +57,7 @@ from .core.powermanager_core.backends.sma_sunny_island import (
     SunnyIslandClient,
     SunnyIslandConnectionConfig,
 )
+from .core.powermanager_core.control.rules import parse_rules_document
 from .core.powermanager_core.exceptions import BackendConnectionError, UnsupportedDeviceError
 
 
@@ -130,6 +135,7 @@ class PowerManagerOptionsFlow(OptionsFlow):
             remaining_load_forecast_entity = user_input.get(CONF_REMAINING_LOAD_FORECAST_ENTITY)
             price_entity = user_input.get(CONF_PRICE_ENTITY)
             static_price = user_input.get(CONF_STATIC_PRICE_PER_KWH)
+            rules_yaml = user_input.get(CONF_RULES_YAML)
             if static_price == "":
                 user_input.pop(CONF_STATIC_PRICE_PER_KWH, None)
                 static_price = None
@@ -143,6 +149,11 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 errors["base"] = "load_forecast_source_conflict"
             elif estimate_remaining_load and not load_power_entity:
                 errors["base"] = "load_forecast_requires_load_power"
+            elif rules_yaml:
+                try:
+                    parse_rules_document(yaml.safe_load(rules_yaml))
+                except (TypeError, ValueError, yaml.YAMLError):
+                    errors["base"] = "invalid_rules"
             elif price_entity and static_price is not None:
                 errors["base"] = "price_source_conflict"
             elif static_price is not None:
@@ -201,6 +212,8 @@ class PowerManagerOptionsFlow(OptionsFlow):
                     CONF_REMAINING_LOAD_FORECAST_ENTITY,
                     self._option(CONF_REMAINING_LOAD_FORECAST_ENTITY),
                 ): _ENERGY_ENTITY_SELECTOR,
+                self._optional_field(CONF_RULES_YAML, self._option(CONF_RULES_YAML)):
+                    _RULES_SELECTOR,
                 vol.Required(
                     CONF_TELEMETRY_MAX_AGE,
                     default=self._config_entry.options.get(
@@ -265,3 +278,4 @@ _LOAD_FORECAST_DAYS_SELECTOR = NumberSelector(
         mode=NumberSelectorMode.BOX,
     )
 )
+_RULES_SELECTOR = TextSelector(TextSelectorConfig(multiline=True))

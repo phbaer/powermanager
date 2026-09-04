@@ -143,6 +143,24 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
             else None
         ),
     ),
+    PowerManagerSensorDescription(
+        key="simulated_rule",
+        translation_key="simulated_rule",
+        value_fn=lambda coordinator: coordinator.data.simulated_rule_id,
+    ),
+    PowerManagerSensorDescription(
+        key="simulated_target_power",
+        translation_key="simulated_target_power",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement="W",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.simulated_target_power_w,
+    ),
+    PowerManagerSensorDescription(
+        key="speedwire_source_count",
+        translation_key="speedwire_source_count",
+        value_fn=lambda coordinator: len(coordinator.data.speedwire_sources),
+    ),
 )
 
 

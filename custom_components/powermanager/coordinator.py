@@ -7,6 +7,7 @@ import logging
 from dataclasses import dataclass
 from datetime import timedelta
 
+import yaml
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry
@@ -26,6 +27,7 @@ from .const import (
     CONF_PV_POWER_ENTITY,
     CONF_REMAINING_LOAD_FORECAST_ENTITY,
     CONF_REMAINING_PV_FORECAST_ENTITY,
+    CONF_RULES_YAML,
     CONF_SCAN_INTERVAL,
     CONF_STATIC_PRICE_PER_KWH,
     CONF_TELEMETRY_MAX_AGE,
@@ -43,6 +45,8 @@ from .core.powermanager_core.backends.sma_sunny_island import (
     SunnyIslandClient,
     SunnyIslandConnectionConfig,
 )
+from .core.powermanager_core.control.policy import evaluate_rules
+from .core.powermanager_core.control.rules import parse_rules_document
 from .core.powermanager_core.exceptions import PowerManagerError
 from .core.powermanager_core.models import BatteryState, DeviceInfo, EnergyState
 from .core.powermanager_core.telemetry import ExponentialBackoff
@@ -62,6 +66,8 @@ class PowerManagerData:
     energy_state: EnergyState
     possible_external_controller: bool = False
     speedwire_sources: tuple[str, ...] = ()
+    simulated_rule_id: str | None = None
+    simulated_target_power_w: float | None = None
 
 
 class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
@@ -110,6 +116,8 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         self._speedwire_task: asyncio.Task[None] | None = None
         self._poll_seconds = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS)
         self._backoff = ExponentialBackoff(self._poll_seconds, MAX_SCAN_INTERVAL_SECONDS)
+        rules_yaml = entry.options.get(CONF_RULES_YAML)
+        self._rules = parse_rules_document(yaml.safe_load(rules_yaml)) if rules_yaml else ()
 
     def start_speedwire_monitor(self) -> None:
         """Start passive multicast observation without affecting Modbus polling."""
@@ -141,6 +149,8 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
                                 self.data.energy_state,
                                 self._speedwire_monitor.possible_external_controller,
                                 tuple(sorted(self._speedwire_monitor.observed_sources)),
+                                self.data.simulated_rule_id,
+                                self.data.simulated_target_power_w,
                             )
                         )
         except asyncio.CancelledError:
@@ -182,16 +192,20 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             if self._forecast_provider.configured
             else None
         )
+        energy_state = EnergyState(
+            timestamp=battery_state.timestamp,
+            battery=battery_state,
+            grid=grid_state,
+            price=price_state,
+            forecast=forecast_state,
+        )
+        intent = evaluate_rules(energy_state, self._rules, at=battery_state.timestamp)
         return PowerManagerData(
             device_info=device_info,
             battery_state=battery_state,
-            energy_state=EnergyState(
-                timestamp=battery_state.timestamp,
-                battery=battery_state,
-                grid=grid_state,
-                price=price_state,
-                forecast=forecast_state,
-            ),
+            energy_state=energy_state,
+            simulated_rule_id=intent.rule_id if intent else None,
+            simulated_target_power_w=intent.target_power_w if intent else None,
         )
 
     def _schedule_retry(self) -> None:

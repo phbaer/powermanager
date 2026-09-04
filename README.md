@@ -63,6 +63,10 @@ Separate PV forecasts are summed only when every selected value is fresh. They
 are used only for simulation/policy eligibility; neither forecast data nor a
 policy can enable a device write.
 
+Simulation-only rules can be edited as versioned YAML in the integration
+options. PowerManager exposes the currently matching simulated rule and its
+requested target power, but never sends that target to the Sunny Island.
+
 Instead of supplying an expected-load forecast entity, PowerManager can estimate
 the remaining load until local midnight from the selected whole-home load-power
 entity. It averages the same remainder of each of the configured number of

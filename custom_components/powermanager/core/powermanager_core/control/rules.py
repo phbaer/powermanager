@@ -18,6 +18,11 @@ def load_rules(path: str | Path) -> tuple[ControlRule, ...]:
         raise RuntimeError("YAML rules require the 'rules' optional dependency") from error
     with Path(path).open(encoding="utf-8") as stream:
         document = yaml.safe_load(stream)
+    return parse_rules_document(document)
+
+
+def parse_rules_document(document: Any) -> tuple[ControlRule, ...]:
+    """Validate an already-parsed rule document without performing I/O."""
     if not isinstance(document, dict) or document.get("version") != 1:
         raise ValueError("rule document must declare version: 1")
     if document.get("enabled", False):
