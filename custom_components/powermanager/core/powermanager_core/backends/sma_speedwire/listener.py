@@ -65,7 +65,10 @@ class SpeedwireListener:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         try:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind((self._interface, self._port))
+            # Bind wildcard for multicast delivery. The configured interface is
+            # selected separately in IP_ADD_MEMBERSHIP below; binding directly
+            # to its unicast address drops multicast datagrams on Linux.
+            sock.bind(("0.0.0.0", self._port))
             membership = socket.inet_aton(self._group) + socket.inet_aton(self._interface)
             sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, membership)
             sock.setblocking(False)

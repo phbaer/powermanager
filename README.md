@@ -25,6 +25,10 @@ uv run powermanager commission --host 192.168.1.50
 uv run powermanager speedwire-capture --duration 60 --show-hex
 ```
 
+When selecting a specific LAN interface, pass its local address with
+`--interface` (for example `10.0.1.254`). The listener binds the UDP socket to
+the wildcard address and uses that value only to select the multicast interface.
+
 The committed `uv.lock` keeps the development and SMA protocol dependencies
 reproducible. Use `uv lock --upgrade` deliberately when updating dependencies.
 
