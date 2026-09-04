@@ -170,8 +170,8 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 ): _STATIC_PRICE_SELECTOR,
                 vol.Optional(
                     CONF_REMAINING_PV_FORECAST_ENTITY,
-                    default=self._option(CONF_REMAINING_PV_FORECAST_ENTITY),
-                ): _ENERGY_ENTITY_SELECTOR,
+                    default=self._option_list(CONF_REMAINING_PV_FORECAST_ENTITY),
+                ): _PV_FORECAST_ENTITY_SELECTOR,
                 vol.Optional(
                     CONF_REMAINING_LOAD_FORECAST_ENTITY,
                     default=self._option(CONF_REMAINING_LOAD_FORECAST_ENTITY),
@@ -200,12 +200,24 @@ class PowerManagerOptionsFlow(OptionsFlow):
         value = self._config_entry.options.get(key)
         return float(value) if value is not None else None
 
+    def _option_list(self, key: str) -> list[str] | None:
+        """Return a multi-selector default and preserve existing string options."""
+        value = self._config_entry.options.get(key)
+        if value is None:
+            return None
+        return [value] if isinstance(value, str) else value
+
 
 _POWER_ENTITY_SELECTOR = EntitySelector(
     EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.POWER)
 )
 _ENERGY_ENTITY_SELECTOR = EntitySelector(
     EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.ENERGY)
+)
+_PV_FORECAST_ENTITY_SELECTOR = EntitySelector(
+    EntitySelectorConfig(
+        domain="sensor", device_class=SensorDeviceClass.ENERGY, multiple=True
+    )
 )
 _SENSOR_ENTITY_SELECTOR = EntitySelector(EntitySelectorConfig(domain="sensor"))
 _PRICE_ENTITY_SELECTOR = EntitySelector(

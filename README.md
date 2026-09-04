@@ -57,10 +57,11 @@ entities. The latter normally map to OBIS `1.7.0` and `2.7.0`. OBIS `1.8.0`
 and `2.8.0` are cumulative energy counters, so they are deliberately not
 accepted as grid-power sources.
 
-The options flow also accepts local remaining-PV and expected-remaining-load
-forecast entities. They must expose Wh, kWh, or MWh and are used only for
-simulation/policy eligibility; neither forecast data nor a policy can enable a
-device write.
+The options flow accepts one or more local remaining-PV forecast entities and
+an expected-remaining-load forecast entity. They must expose Wh, kWh, or MWh.
+Separate PV forecasts are summed only when every selected value is fresh. They
+are used only for simulation/policy eligibility; neither forecast data nor a
+policy can enable a device write.
 
 `powermanager commission` performs a read-only preflight of the Sunny Island's
 external-setpoint and fallback configuration. It never sends a setpoint or changes
