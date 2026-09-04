@@ -44,8 +44,10 @@ The polling interval can be adjusted from the integration's Home Assistant optio
 flow (5–300 seconds). Connection details remain in the config entry and all device
 communication remains read-only.
 
-Optional grid/PV/load and tariff entities are accepted only while fresh. Grid
-power is normalized from kW to W. A tariff entity must expose an explicit
+Optional grid/PV/load and price telemetry is accepted only while fresh. Grid
+power is normalized from kW to W. Configure either a market-price entity or a
+fixed contract import price in EUR/kWh; a fixed price does not require a Home
+Assistant helper. A market-price entity must expose an explicit
 currency-per-energy unit: prices in `/MWh` are normalized to `/kWh`, while
 unitless or ambiguous prices are not used.
 

@@ -8,6 +8,8 @@ from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.powermanager.const import DOMAIN
+from custom_components.powermanager.core.powermanager_core.models import CommunicationState
+from custom_components.powermanager.ha_price_provider import HomeAssistantEntityPriceProvider
 
 
 async def test_user_flow_validates_read_only_connection(hass) -> None:
@@ -24,3 +26,17 @@ async def test_user_flow_validates_read_only_connection(hass) -> None:
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "Sunny Island SI4.4M-12"
     assert result["data"] == {"host": "10.0.1.240", "port": 502, "unit_id": 3}
+
+
+async def test_static_price_does_not_require_a_home_assistant_entity(hass) -> None:
+    """A fixed tariff is available without creating a helper entity."""
+    provider = HomeAssistantEntityPriceProvider(
+        hass, entity_id=None, max_age_seconds=120, static_price_per_kwh=0.32
+    )
+
+    state = await provider.read_price_state()
+
+    assert provider.configured
+    assert state.price_per_kwh == 0.32
+    assert state.currency == "EUR/kWh"
+    assert state.communication_state is CommunicationState.ONLINE

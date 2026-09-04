@@ -12,6 +12,7 @@ CONF_PV_POWER_ENTITY = "pv_power_entity"
 CONF_LOAD_POWER_ENTITY = "load_power_entity"
 CONF_TELEMETRY_MAX_AGE = "telemetry_max_age"
 CONF_PRICE_ENTITY = "price_entity"
+CONF_STATIC_PRICE_PER_KWH = "static_price_per_kwh"
 CONF_REMAINING_PV_FORECAST_ENTITY = "remaining_pv_forecast_entity"
 CONF_REMAINING_LOAD_FORECAST_ENTITY = "remaining_load_forecast_entity"
 

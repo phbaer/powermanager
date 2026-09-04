@@ -9,7 +9,13 @@ from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.config_entries import ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers.selector import EntitySelector, EntitySelectorConfig
+from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+)
 
 from .const import (
     CONF_GRID_POWER_ENTITY,
@@ -21,6 +27,7 @@ from .const import (
     CONF_REMAINING_LOAD_FORECAST_ENTITY,
     CONF_REMAINING_PV_FORECAST_ENTITY,
     CONF_SCAN_INTERVAL,
+    CONF_STATIC_PRICE_PER_KWH,
     CONF_TELEMETRY_MAX_AGE,
     CONF_UNIT_ID,
     DEFAULT_PORT,
@@ -102,8 +109,22 @@ class PowerManagerOptionsFlow(OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Update the coordinator polling interval."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            price_entity = user_input.get(CONF_PRICE_ENTITY)
+            static_price = user_input.get(CONF_STATIC_PRICE_PER_KWH)
+            if price_entity and static_price is not None:
+                errors["base"] = "price_source_conflict"
+            elif static_price is not None:
+                try:
+                    user_input[CONF_STATIC_PRICE_PER_KWH] = float(static_price)
+                except (TypeError, ValueError):
+                    errors["base"] = "invalid_static_price"
+                else:
+                    if user_input[CONF_STATIC_PRICE_PER_KWH] < 0:
+                        errors["base"] = "invalid_static_price"
+            if not errors:
+                return self.async_create_entry(title="", data=user_input)
 
         current_interval = self._config_entry.options.get(
             CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS
@@ -125,6 +146,10 @@ class PowerManagerOptionsFlow(OptionsFlow):
                     default=self._option(CONF_PRICE_ENTITY),
                 ): _PRICE_ENTITY_SELECTOR,
                 vol.Optional(
+                    CONF_STATIC_PRICE_PER_KWH,
+                    default=self._option_number(CONF_STATIC_PRICE_PER_KWH),
+                ): _STATIC_PRICE_SELECTOR,
+                vol.Optional(
                     CONF_REMAINING_PV_FORECAST_ENTITY,
                     default=self._option(CONF_REMAINING_PV_FORECAST_ENTITY),
                 ): _ENERGY_ENTITY_SELECTOR,
@@ -145,11 +170,16 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 ),
             }
         )
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
 
     def _option(self, key: str) -> str | None:
         """Return an optional selector default without presenting an empty value."""
         return self._config_entry.options.get(key) or None
+
+    def _option_number(self, key: str) -> float | None:
+        """Return an optional numeric default, preserving zero as a valid value."""
+        value = self._config_entry.options.get(key)
+        return float(value) if value is not None else None
 
 
 _POWER_ENTITY_SELECTOR = EntitySelector(
@@ -161,4 +191,7 @@ _ENERGY_ENTITY_SELECTOR = EntitySelector(
 _SENSOR_ENTITY_SELECTOR = EntitySelector(EntitySelectorConfig(domain="sensor"))
 _PRICE_ENTITY_SELECTOR = EntitySelector(
     EntitySelectorConfig(domain=["sensor", "input_number"])
+)
+_STATIC_PRICE_SELECTOR = NumberSelector(
+    NumberSelectorConfig(min=0, step=0.001, mode=NumberSelectorMode.BOX)
 )

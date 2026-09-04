@@ -23,6 +23,7 @@ from .const import (
     CONF_REMAINING_LOAD_FORECAST_ENTITY,
     CONF_REMAINING_PV_FORECAST_ENTITY,
     CONF_SCAN_INTERVAL,
+    CONF_STATIC_PRICE_PER_KWH,
     CONF_TELEMETRY_MAX_AGE,
     CONF_UNIT_ID,
     DEFAULT_SCAN_INTERVAL_SECONDS,
@@ -88,6 +89,7 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             hass,
             entry.options.get(CONF_PRICE_ENTITY),
             entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS),
+            entry.options.get(CONF_STATIC_PRICE_PER_KWH),
         )
         self._forecast_provider = HomeAssistantEntityForecastProvider(
             hass,

@@ -14,16 +14,31 @@ from .core.powermanager_core.telemetry import (
 class HomeAssistantEntityPriceProvider:
     """Read a current price from an existing numeric Home Assistant entity."""
 
-    def __init__(self, hass: object, entity_id: str | None, max_age_seconds: int) -> None:
+    def __init__(
+        self,
+        hass: object,
+        entity_id: str | None,
+        max_age_seconds: int,
+        static_price_per_kwh: float | None = None,
+    ) -> None:
         self._hass = hass
         self._entity_id = entity_id
         self._max_age_seconds = max_age_seconds
+        self._static_price_per_kwh = static_price_per_kwh
 
     @property
     def configured(self) -> bool:
-        return bool(self._entity_id)
+        return bool(self._entity_id) or self._static_price_per_kwh is not None
 
     async def read_price_state(self) -> PriceState:
+        if self._static_price_per_kwh is not None:
+            return PriceState(
+                timestamp=datetime.now(UTC),
+                price_per_kwh=self._static_price_per_kwh,
+                currency="EUR/kWh",
+                communication_state=CommunicationState.ONLINE,
+            )
+
         state = self._hass.states.get(self._entity_id) if self._entity_id else None
         value = None
         currency = None
