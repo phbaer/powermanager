@@ -42,7 +42,12 @@ def test_home_manager_detection_blocks_write() -> None:
     transport = FakeTransport()
     adapter = SunnyIslandControlAdapter(
         transport,
-        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True, home_manager_detected=True),
+        guard=ControlWriteGuard(
+            enabled=True,
+            ownership_confirmed=True,
+            home_manager_detected=True,
+            failsafe_verified=True,
+        ),
     )
     with pytest.raises(ControlWriteError):
         asyncio.run(adapter.set_active_power(100))
@@ -52,7 +57,7 @@ def test_signed_setpoint_is_encoded_as_two_registers() -> None:
     transport = FakeTransport()
     adapter = SunnyIslandControlAdapter(
         transport,
-        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True, failsafe_verified=True),
     )
     asyncio.run(adapter.set_active_power(-1500))
     assert transport.calls == [(40149, [0xFFFF, 0xFA24], 3)]
@@ -106,6 +111,18 @@ def test_failsafe_preflight_is_read_only() -> None:
     adapter = SunnyIslandControlAdapter(transport)
     assert asyncio.run(adapter.verify_failsafe())
     assert transport.calls == []
+
+
+def test_setpoint_requires_successful_failsafe_preflight() -> None:
+    transport = FakeTransport()
+    adapter = SunnyIslandControlAdapter(
+        transport,
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+    )
+    with pytest.raises(ControlWriteError, match="locked"):
+        asyncio.run(adapter.set_active_power(100))
+    assert asyncio.run(adapter.verify_failsafe())
+    asyncio.run(adapter.set_active_power(100))
 
 
 def test_bounded_session_restores_normal_operation() -> None:

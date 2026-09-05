@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Protocol
 
 from ...exceptions import PowerManagerError
@@ -38,11 +38,17 @@ class ControlWriteGuard:
     enabled: bool = False
     ownership_confirmed: bool = False
     home_manager_detected: bool = False
+    failsafe_verified: bool = False
 
     @property
     def allowed(self) -> bool:
         """Return whether all software gates permit a write."""
-        return self.enabled and self.ownership_confirmed and not self.home_manager_detected
+        return (
+            self.enabled
+            and self.ownership_confirmed
+            and not self.home_manager_detected
+            and self.failsafe_verified
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,11 +97,11 @@ class SunnyIslandControlAdapter:
 
     async def enable_external_setpoint_mode(self) -> None:
         """Select external active-power setpoint mode (40210 = 1079)."""
-        await self._write_u32(40210, 1079)
+        await self._write_u32(40210, 1079, require_preflight=False)
 
     async def set_communication_control(self, enabled: bool) -> None:
         """Enable or disable communication control (40151 = 802/803)."""
-        await self._write_u32(40151, 802 if enabled else 803)
+        await self._write_u32(40151, 802 if enabled else 803, require_preflight=False)
 
     async def capture_baseline(self) -> ControlBaseline:
         """Read operating values that a session must restore afterwards."""
@@ -110,8 +116,12 @@ class SunnyIslandControlAdapter:
         Recovery intentionally bypasses the active-control guard: revoking control
         ownership must never prevent the cleanup needed to stop external commands.
         """
-        await self._write_u32(40151, baseline.communication_control, require_guard=False)
-        await self._write_u32(40210, baseline.external_setpoint_mode, require_guard=False)
+        await self._write_u32(
+            40151, baseline.communication_control, require_guard=False, require_preflight=False
+        )
+        await self._write_u32(
+            40210, baseline.external_setpoint_mode, require_guard=False, require_preflight=False
+        )
         restored_control = await self._read_u32(40151)
         restored_mode = await self._read_u32(40210)
         if (restored_control, restored_mode) != (
@@ -128,8 +138,8 @@ class SunnyIslandControlAdapter:
         """Set documented min/max active-power bounds as percent of nominal power."""
         if not -100 <= minimum_percent <= maximum_percent <= 100:
             raise ControlWriteError("power bounds must satisfy -100 <= min <= max <= 100")
-        await self._write_s32(44041, minimum_percent, scale=100)
-        await self._write_s32(44039, maximum_percent, scale=100)
+        await self._write_s32(44041, minimum_percent, scale=100, require_preflight=False)
+        await self._write_s32(44039, maximum_percent, scale=100, require_preflight=False)
 
     async def configure_failsafe(self, *, timeout_seconds: int, fallback_power_w: float) -> None:
         """Configure apply-fallback behavior and timeout on the inverter."""
@@ -137,9 +147,9 @@ class SunnyIslandControlAdapter:
             raise ControlWriteError("fallback timeout must be between 1 and 1800 seconds")
         if not 0 <= fallback_power_w <= 10000:
             raise ControlWriteError("fallback power must be between 0 and 10000 W")
-        await self._write_u32(41193, 2507)
-        await self._write_u32(41195, timeout_seconds)
-        await self._write_s32(44037, fallback_power_w, scale=100)
+        await self._write_u32(41193, 2507, require_preflight=False)
+        await self._write_u32(41195, timeout_seconds, require_preflight=False)
+        await self._write_s32(44037, fallback_power_w, scale=100, require_preflight=False)
 
     async def verify_failsafe(self) -> bool:
         """Verify external mode and apply-fallback settings without writing."""
@@ -147,12 +157,14 @@ class SunnyIslandControlAdapter:
         fallback = await self._read_u32(41193)
         timeout = await self._read_u32(41195)
         fallback_power = await self._read_s32(44037, scale=100)
-        return (
+        valid = (
             mode == 1079
             and fallback == 2507
             and 1 <= timeout <= 1800
             and 0 <= fallback_power <= 10000
         )
+        self._guard = replace(self._guard, failsafe_verified=valid)
+        return valid
 
     async def _read_u32(self, address: int) -> int:
         values = await self._transport.read_holding_registers(address, 2, self._unit_id)
@@ -165,8 +177,15 @@ class SunnyIslandControlAdapter:
         signed = raw - 2**32 if raw & 0x80000000 else raw
         return signed / scale
 
-    async def _write_u32(self, address: int, value: int, *, require_guard: bool = True) -> None:
-        if require_guard and not self._guard.allowed:
+    async def _write_u32(
+        self,
+        address: int,
+        value: int,
+        *,
+        require_guard: bool = True,
+        require_preflight: bool = True,
+    ) -> None:
+        if require_guard and not self._guard_allows(require_preflight=require_preflight):
             raise ControlWriteError("active control is locked")
         if not 0 <= value <= 0xFFFFFFFF:
             raise ControlWriteError("unsigned register value is out of range")
@@ -174,8 +193,10 @@ class SunnyIslandControlAdapter:
             address, [(value >> 16) & 0xFFFF, value & 0xFFFF], self._unit_id
         )
 
-    async def _write_s32(self, address: int, value: float, *, scale: float) -> None:
-        if not self._guard.allowed:
+    async def _write_s32(
+        self, address: int, value: float, *, scale: float, require_preflight: bool = True
+    ) -> None:
+        if not self._guard_allows(require_preflight=require_preflight):
             raise ControlWriteError("active control is locked")
         raw = int(round(value * scale))
         if not -(2**31) <= raw <= 2**31 - 1:
@@ -183,6 +204,15 @@ class SunnyIslandControlAdapter:
         encoded = raw & 0xFFFFFFFF
         await self._transport.write_holding_registers(
             address, [(encoded >> 16) & 0xFFFF, encoded & 0xFFFF], self._unit_id
+        )
+
+    def _guard_allows(self, *, require_preflight: bool) -> bool:
+        """Check ownership gates and optionally the read-only failsafe preflight."""
+        return (
+            self._guard.enabled
+            and self._guard.ownership_confirmed
+            and not self._guard.home_manager_detected
+            and (self._guard.failsafe_verified or not require_preflight)
         )
 
 
