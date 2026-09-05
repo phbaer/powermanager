@@ -22,7 +22,10 @@ from custom_components.powermanager.core.powermanager_core.control import (
     RuleConditions,
 )
 from custom_components.powermanager.core.powermanager_core.control.watchdog import ControlWatchdog
-from custom_components.powermanager.core.powermanager_core.exceptions import BackendConnectionError
+from custom_components.powermanager.core.powermanager_core.exceptions import (
+    BackendConnectionError,
+    UnsupportedDeviceError,
+)
 from custom_components.powermanager.core.powermanager_core.models import (
     BatteryState,
     CommunicationState,
@@ -52,7 +55,9 @@ def coordinator(hass):
 
 async def test_modbus_failure_schedules_retry_and_next_poll_recovers(coordinator):
     client = AsyncMock()
-    client.get_device_info.return_value = coordinator.data.device_info
+    client.get_device_info.return_value = DeviceInfo(
+        "sma_sunny_island", "SI4.4M-12", "305419896", "01.05.10.R", 9332, True
+    )
     client.read_state.return_value = BatteryState(
         timestamp=datetime.now(UTC), communication_state=CommunicationState.ONLINE
     )
@@ -72,6 +77,38 @@ async def test_modbus_failure_schedules_retry_and_next_poll_recovers(coordinator
     schedule_retry.assert_called_once_with()
     create_issue.assert_called_once_with("communication_failure", "communication_failure")
     assert recovered.battery_state.communication_state is CommunicationState.ONLINE
+
+
+async def test_unsupported_device_is_reported_separately(coordinator):
+    with (
+        patch("custom_components.powermanager.coordinator.SunnyIslandClient") as factory,
+        patch.object(coordinator, "_schedule_retry") as schedule_retry,
+        patch.object(coordinator, "_create_issue") as create_issue,
+    ):
+        factory.return_value.__aenter__.side_effect = UnsupportedDeviceError("type 123")
+        with pytest.raises(UpdateFailed, match="type 123"):
+            await coordinator._async_update_data()
+
+    schedule_retry.assert_called_once_with()
+    create_issue.assert_called_once_with("unsupported_device", "unsupported_device")
+
+
+async def test_missing_firmware_identity_creates_monitoring_issue(coordinator):
+    client = AsyncMock()
+    client.get_device_info.return_value = DeviceInfo(
+        "sma_sunny_island", "SI4.4M-12", None, None, 9332, True
+    )
+    client.read_state.return_value = BatteryState(
+        timestamp=datetime.now(UTC), communication_state=CommunicationState.ONLINE
+    )
+    with (
+        patch("custom_components.powermanager.coordinator.SunnyIslandClient") as factory,
+        patch.object(coordinator, "_create_issue") as create_issue,
+    ):
+        factory.return_value.__aenter__.return_value = client
+        await coordinator._async_update_data()
+
+    create_issue.assert_called_once_with("firmware_unavailable", "firmware_unavailable")
 
 
 async def test_detection_survives_poll_and_does_not_mask_modbus_failure(coordinator):

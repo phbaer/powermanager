@@ -68,7 +68,7 @@ from .core.powermanager_core.control.predictive import (
 from .core.powermanager_core.control.rules import parse_rules_document
 from .core.powermanager_core.control.runtime import ControlRuntime
 from .core.powermanager_core.control.watchdog import ControlWatchdog
-from .core.powermanager_core.exceptions import PowerManagerError
+from .core.powermanager_core.exceptions import PowerManagerError, UnsupportedDeviceError
 from .core.powermanager_core.models import (
     BatteryState,
     CommunicationState,
@@ -277,6 +277,10 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             async with SunnyIslandClient(self._config) as client:
                 device_info = await client.get_device_info()
                 battery_state = await client.read_state()
+        except UnsupportedDeviceError as error:
+            self._schedule_retry()
+            self._create_issue("unsupported_device", "unsupported_device")
+            raise UpdateFailed(str(error)) from error
         except PowerManagerError as error:
             self._schedule_retry()
             self._create_issue("communication_failure", "communication_failure")
@@ -289,6 +293,10 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         self._backoff.record_success()
         self.update_interval = timedelta(seconds=self._poll_seconds)
         issue_registry.async_delete_issue(self.hass, DOMAIN, "communication_failure")
+        if device_info.firmware_version is None:
+            self._create_issue("firmware_unavailable", "firmware_unavailable")
+        else:
+            issue_registry.async_delete_issue(self.hass, DOMAIN, "firmware_unavailable")
 
         grid_state = (
             await self._grid_provider.read_grid_state()

@@ -102,7 +102,10 @@ restart without relying on packages installed by the development environment.
   explicit migration and physical firmware support validation remain outstanding.
 - [x] Expose the decoded firmware identity as a read-only HA sensor; this does
   not establish that the observed firmware is approved for active control.
-- [ ] Establish firmware support and unsupported/unavailable-state reporting.
+- [x] Report unsupported device types and undecodable firmware as separate HA
+  issues while keeping the integration unavailable/monitor-only.
+- [ ] Establish the actual supported firmware matrix and validate it against
+  the target hardware.
 - [x] Require tests, Ruff, hassfest, and HACS validation before publishing. The
   HACS release job now depends on all three repository validation jobs; actual
   hosted workflow results still need to be recorded.

@@ -126,6 +126,14 @@
     "possible_external_controller": {
       "title": "Possible competing SMA controller detected",
       "description": "A non-Sunny-Island sender was observed on SMA Speedwire. Do not enable active control until ownership has been confirmed."
+    },
+    "unsupported_device": {
+      "title": "Unsupported SMA device",
+      "description": "The configured endpoint is not a supported Sunny Island model. PowerManager remains unavailable and cannot control it."
+    },
+    "firmware_unavailable": {
+      "title": "Sunny Island firmware identity unavailable",
+      "description": "The device type was read, but firmware identity could not be decoded. Keep PowerManager monitor-only until firmware support is confirmed."
     }
   }
 }
