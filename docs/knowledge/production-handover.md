@@ -59,6 +59,9 @@ Complete each acceptance gate before advancing to its dependent stage.
 
 - [x] Declare the supported `pymodbus` requirement in the HA manifest. The
   development extra and the HACS archive now declare the same pinned version.
+- [x] Smoke-check a locally built archive for the required manifest, strings,
+  translation, and runtime dependency files; this does not replace a real HACS
+  installation.
 - [x] Review optional Recorder behavior when absent; forecast history failures are
   caught and withheld so optional forecasting cannot break battery monitoring.
 - [ ] Install the actual HACS release archive into a clean HA environment without
