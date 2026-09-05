@@ -171,4 +171,8 @@ async def test_full_read_only_setup_forwards_entities_and_unloads(hass) -> None:
             state.entity_id.startswith("sensor.")
             for state in hass.states.async_all()
         )
+        with patch.object(hass.config_entries, "async_reload", AsyncMock()) as reload:
+            hass.config_entries.async_update_entry(entry, options={"scan_interval": 60})
+            await hass.async_block_till_done()
+            reload.assert_awaited_once_with(entry.entry_id)
         assert await hass.config_entries.async_unload(entry.entry_id)

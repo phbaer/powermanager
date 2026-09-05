@@ -80,7 +80,7 @@ restart without relying on packages installed by the development environment.
 
 - [x] Test full read-only setup/entity creation and connection failure/recovery
   with HA fixtures.
-- [ ] Exercise options reload through HA's config-entry lifecycle; unload and
+- [x] Exercise options reload through HA's config-entry lifecycle; unload and
   setup-failure cleanup are covered separately below.
 - [x] Entry lifecycle cleanup is covered: successful forwarding is limited to
   monitor platforms, a failed forward stops the passive listener, and normal
