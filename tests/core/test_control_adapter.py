@@ -10,6 +10,7 @@ from powermanager_core.backends.sma_sunny_island import (
     ControlWriteGuard,
     SunnyIslandControlAdapter,
 )
+from powermanager_core.exceptions import BackendConnectionError
 
 
 class FakeTransport:
@@ -42,6 +43,15 @@ class RestoreFailureTransport(FakeTransport):
         if address == 40151 and not self.failed:
             self.failed = True
             raise TimeoutError("simulated recovery timeout")
+        await super().write_holding_registers(address, values, unit_id)
+
+
+class DisconnectTransport(FakeTransport):
+    """Fail the first active-power write while keeping recovery available."""
+
+    async def write_holding_registers(self, address: int, values: list[int], unit_id: int) -> None:
+        if address == 40149:
+            raise BackendConnectionError("simulated TCP disconnect")
         await super().write_holding_registers(address, values, unit_id)
 
 
@@ -225,6 +235,22 @@ def test_session_revalidates_before_each_heartbeat() -> None:
         )
     assert calls == 2
     assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]
+
+
+def test_disconnected_transport_fails_session_and_restores_baseline() -> None:
+    transport = DisconnectTransport()
+    adapter = SunnyIslandControlAdapter(
+        transport,
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+    )
+    session = ControlCommandSession(adapter, max_duration_seconds=1)
+    with pytest.raises(BackendConnectionError, match="disconnect"):
+        asyncio.run(session.run(100, asyncio.Event()))
+    assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]
+    assert [(event.kind, event.reason) for event in session.events[-2:]] == [
+        ("session_failed", "heartbeat"),
+        ("baseline_restored", None),
+    ]
 
 
 def test_unbounded_run_is_stopped_by_maximum_duration() -> None:

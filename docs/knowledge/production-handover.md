@@ -77,6 +77,9 @@ restart without relying on packages installed by the development environment.
 - [x] Entry lifecycle cleanup is covered: successful forwarding is limited to
   monitor platforms, a failed forward stops the passive listener, and normal
   unload removes the coordinator before HA retries or releases the entry.
+- [x] Coordinator read failures trigger backoff and a subsequent successful poll
+  recovers through the same read-only path; full HA connection/entity lifecycle
+  coverage remains open.
 - [ ] Extend observation tests to timed silence, DNS failure/recovery, and sustained
   traffic alongside scheduled Modbus updates.
 - [ ] Validate multicast reception/recovery on the deployment network; document
@@ -147,8 +150,8 @@ and no transport writes.
   session restores communication/mode values and reads them back; the dedicated
   restore-normal path remains available for recovery.
 - [x] Test partial restoration writes, failed restoration reporting, cancellation,
-  and overlapping sessions with fake transport. Disconnected transport, clock
-  changes, and process restart policy still need dedicated coverage.
+  overlapping sessions, and disconnected transport with fake transport. Clock
+  changes and process restart policy still need dedicated coverage.
 - [x] Separate raw write capability from the read-only transport. The Modbus
   client now exposes writes only through `PymodbusTcpWriteTransport`; the
   Sunny Island monitor retains the read-only transport.

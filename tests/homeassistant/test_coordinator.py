@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from homeassistant.helpers.update_coordinator import UpdateFailed
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.powermanager.binary_sensor import (
@@ -21,6 +22,7 @@ from custom_components.powermanager.core.powermanager_core.control import (
     RuleConditions,
 )
 from custom_components.powermanager.core.powermanager_core.control.watchdog import ControlWatchdog
+from custom_components.powermanager.core.powermanager_core.exceptions import BackendConnectionError
 from custom_components.powermanager.core.powermanager_core.models import (
     BatteryState,
     CommunicationState,
@@ -45,6 +47,30 @@ def coordinator(hass):
         battery, EnergyState(now, battery),
     )
     return result
+
+
+async def test_modbus_failure_schedules_retry_and_next_poll_recovers(coordinator):
+    client = AsyncMock()
+    client.get_device_info.return_value = coordinator.data.device_info
+    client.read_state.return_value = BatteryState(
+        timestamp=datetime.now(UTC), communication_state=CommunicationState.ONLINE
+    )
+    with (
+        patch("custom_components.powermanager.coordinator.SunnyIslandClient") as factory,
+        patch.object(coordinator, "_schedule_retry") as schedule_retry,
+        patch.object(coordinator, "_create_issue") as create_issue,
+    ):
+        factory.return_value.__aenter__.side_effect = [
+            BackendConnectionError("offline"),
+            client,
+        ]
+        with pytest.raises(UpdateFailed, match="offline"):
+            await coordinator._async_update_data()
+        recovered = await coordinator._async_update_data()
+
+    schedule_retry.assert_called_once_with()
+    create_issue.assert_called_once_with("communication_failure", "communication_failure")
+    assert recovered.battery_state.communication_state is CommunicationState.ONLINE
 
 
 async def test_detection_survives_poll_and_does_not_mask_modbus_failure(coordinator):
