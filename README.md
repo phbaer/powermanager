@@ -88,6 +88,12 @@ Simulation-only rules can be edited as versioned YAML in the integration
 options. PowerManager exposes the currently matching simulated rule and its
 requested target power, but never sends that target to the Sunny Island.
 
+The core also includes a predictive shadow planner that accounts for usable
+capacity, reserve and end-of-day targets, forecast uncertainty, export capacity,
+and charge limits. It produces explainable recommendations and deterministic
+replay results for future backtesting; it is not connected to Home Assistant
+control or any inverter write path.
+
 Instead of supplying an expected-load forecast entity, PowerManager can estimate
 the remaining load until local midnight from the selected whole-home load-power
 entity. It averages the same remainder of each of the configured number of

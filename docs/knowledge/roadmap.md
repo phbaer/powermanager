@@ -18,7 +18,9 @@ checklists and acceptance criteria after the 2026-09-05 review.
 5. Bounded command sessions and recovery tested with fake transport.
 6. Explicitly authorized, supervised physical commissioning and failure tests.
 7. Opt-in manual control, followed by scheduled delayed charging.
-8. Predictive planning, backtesting, and shadow-mode validation.
+8. Predictive planning, backtesting, and shadow-mode validation. The reusable
+   predictive planner and deterministic replay primitive now exist; recorded
+   day backtests and an HA shadow period remain open.
 
 # Current boundary
 

@@ -202,10 +202,12 @@ their safety boundaries.
 
 ### 8. Implement and validate predictive charging
 
-- [ ] Model usable capacity, end-of-day SoC target, charging limits, export
-  constraints, forecast uncertainty, and remaining time.
-- [ ] Plan headroom across the day instead of only fixed surplus thresholds;
-  existing forecast inputs and rules are not a predictive planner.
+- [x] Model usable capacity, end-of-day SoC target, charging limits, export
+  constraints, forecast uncertainty, and remaining time. The core planner is
+  deterministic and side-effect-free, and its output remains safety-validated.
+- [x] Plan headroom across the day instead of only fixed surplus thresholds;
+  the planner returns explicit headroom and charge-inhibit semantics. It is
+  still disconnected from HA and cannot write an inverter target.
 - [ ] Backtest recorded days with poor/missing forecasts, tariff changes, and
   seasonal/DST cases; compare reserve and end-of-day outcomes.
 - [ ] Complete a documented shadow-mode period before supervised activation.
