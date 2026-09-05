@@ -45,7 +45,8 @@ readback. Recovery writes are isolated from the monitor transport and remain
 available only to the separately reviewed adapter. Bounded sessions retain
 sanitized start, failure, expiry, cancellation, and restoration events for a
 future diagnostics surface; they never include transport exception text. HA
-entry setup also cleans up the passive listener if platform forwarding fails.
+entry setup and unload also clean up the passive listener and coordinator state
+when platform forwarding fails or the entry is released.
 
 ## CI validation
 

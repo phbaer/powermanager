@@ -62,7 +62,8 @@ commissioning is still required before any command adapter can be connected.
 The disconnected command-session adapter keeps a bounded, sanitized event buffer
 for future diagnostics and verifies baseline restoration after each bounded test
 session. Home Assistant setup removes that passive monitor state if platform
-forwarding fails, so a retry cannot inherit a leaked listener.
+forwarding fails or the entry unloads, so retries cannot inherit a leaked
+listener.
 
 Optional grid/PV/load and price telemetry is accepted only while fresh. Grid
 power is normalized from kW to W. Configure either a market-price entity or a

@@ -74,8 +74,9 @@ restart without relying on packages installed by the development environment.
 
 - [ ] Test full setup/entity creation, connection failure/recovery, options reload,
   unload, and setup-failure cleanup with HA fixtures.
-- [x] Setup failure cleanup is covered: a failed platform forward stops the
-  passive listener and removes the coordinator before HA retries the entry.
+- [x] Entry lifecycle cleanup is covered: successful forwarding is limited to
+  monitor platforms, a failed forward stops the passive listener, and normal
+  unload removes the coordinator before HA retries or releases the entry.
 - [ ] Extend observation tests to timed silence, DNS failure/recovery, and sustained
   traffic alongside scheduled Modbus updates.
 - [ ] Validate multicast reception/recovery on the deployment network; document
