@@ -116,14 +116,26 @@ class SunnyIslandControlAdapter:
         Recovery intentionally bypasses the active-control guard: revoking control
         ownership must never prevent the cleanup needed to stop external commands.
         """
-        await self._write_u32(
-            40151, baseline.communication_control, require_guard=False, require_preflight=False
-        )
-        await self._write_u32(
-            40210, baseline.external_setpoint_mode, require_guard=False, require_preflight=False
-        )
-        restored_control = await self._read_u32(40151)
-        restored_mode = await self._read_u32(40210)
+        write_errors: list[Exception] = []
+        for address, value in (
+            (40151, baseline.communication_control),
+            (40210, baseline.external_setpoint_mode),
+        ):
+            try:
+                await self._write_u32(
+                    address, value, require_guard=False, require_preflight=False
+                )
+            except Exception as error:
+                write_errors.append(error)
+        if write_errors:
+            raise ControlWriteError(
+                "Sunny Island baseline restoration write failed"
+            ) from write_errors[0]
+        try:
+            restored_control = await self._read_u32(40151)
+            restored_mode = await self._read_u32(40210)
+        except Exception as error:
+            raise ControlWriteError("Sunny Island baseline restoration readback failed") from error
         if (restored_control, restored_mode) != (
             baseline.communication_control,
             baseline.external_setpoint_mode,

@@ -30,6 +30,20 @@ class FakeTransport:
         return self.reads[address]
 
 
+class RestoreFailureTransport(FakeTransport):
+    """Fail the first recovery write while allowing the second to proceed."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.failed = False
+
+    async def write_holding_registers(self, address: int, values: list[int], unit_id: int) -> None:
+        if address == 40151 and not self.failed:
+            self.failed = True
+            raise TimeoutError("simulated recovery timeout")
+        await super().write_holding_registers(address, values, unit_id)
+
+
 def test_control_is_locked_by_default() -> None:
     transport = FakeTransport()
     adapter = SunnyIslandControlAdapter(transport)
@@ -184,3 +198,11 @@ def test_unbounded_run_is_stopped_by_maximum_duration() -> None:
     )
     assert transport.calls[0][0] == 40149
     assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]
+
+
+def test_restore_attempts_mode_after_communication_write_failure() -> None:
+    transport = RestoreFailureTransport()
+    adapter = SunnyIslandControlAdapter(transport)
+    with pytest.raises(ControlWriteError, match="restoration write failed"):
+        asyncio.run(adapter.restore_normal_operation())
+    assert transport.calls == [(40210, [0, 303], 3)]
