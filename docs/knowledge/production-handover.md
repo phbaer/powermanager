@@ -25,6 +25,18 @@ external-setpoint mode, apply-fallback behavior, a 300-second timeout, and 6000 
 fallback maximum power. These are historical observations, not proof of safe
 recovery after controller failure. Re-read settings before commissioning.
 
+Read-only deployment validation on 2026-09-05 reached the Home Assistant instance
+at `10.0.1.6`. It runs Home Assistant Core `2026.9.0` on HA OS `18.2`; `ha core
+check` completed successfully and no matching PowerManager, Sunny Island, or
+Speedwire errors appeared in the recent core log. The configured PowerManager entry
+is enabled and has 19 registered entities. The installed integration is an older
+copy than this checkout: its manifest has no declared Home Assistant minimum or
+`pymodbus` requirement, and its file hashes differ from the current source. The
+deployed tree does not contain the current predictive/control modules. No files,
+configuration, or inverter settings were changed during this check. Installing a
+release archive and repeating the clean-install/current-version validation remains
+an open gate below.
+
 Completed passive detection improvements:
 
 - Modbus polls preserve observed sources and possible-controller warnings.
