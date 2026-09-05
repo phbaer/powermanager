@@ -57,10 +57,10 @@ Complete each acceptance gate before advancing to its dependent stage.
 
 ### 1. Make monitor-only installation reproducible
 
-- [ ] Declare the supported pymodbus requirement in the HA manifest. The development
-  extra currently hides its absence from the manifest.
-- [ ] Review optional Recorder dependency ordering and behavior when absent;
-  optional forecasting must not break battery monitoring.
+- [x] Declare the supported `pymodbus` requirement in the HA manifest. The
+  development extra and the HACS archive now declare the same pinned version.
+- [x] Review optional Recorder behavior when absent; forecast history failures are
+  caught and withheld so optional forecasting cannot break battery monitoring.
 - [ ] Install the actual HACS release archive into a clean HA environment without
   manually installing dependencies.
 - [ ] Validate the declared minimum and a current supported HA version; correct
@@ -83,8 +83,9 @@ restart without relying on packages installed by the development environment.
   registry now carries a serial identifier alongside the legacy entry identifier;
   explicit migration and physical firmware support validation remain outstanding.
 - [ ] Establish firmware support and unsupported/unavailable-state reporting.
-- [ ] Require tests, Ruff, hassfest, and HACS validation before publishing.
-  Currently the release job depends only on its HACS validation job.
+- [x] Require tests, Ruff, hassfest, and HACS validation before publishing. The
+  HACS release job now depends on all three repository validation jobs; actual
+  hosted workflow results still need to be recorded.
 - [ ] Record a monitoring soak test's duration, gaps, and recovery after network
   interruption, HA restart, and listener failure.
 
