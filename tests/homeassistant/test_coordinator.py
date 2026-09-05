@@ -28,6 +28,7 @@ from custom_components.powermanager.core.powermanager_core.models import (
     CommunicationState,
     DeviceInfo,
     EnergyState,
+    ForecastState,
 )
 
 
@@ -178,6 +179,34 @@ async def test_coordinator_uses_runtime_for_simulation_decision(coordinator):
     assert data.simulated_target_power_w == 100
     assert data.simulated_accepted is True
     assert data.simulated_reason is None
+
+
+async def test_coordinator_exposes_predictive_shadow_plan_without_writes(coordinator):
+    now = datetime(2026, 6, 1, 8, tzinfo=UTC)
+    battery = BatteryState(
+        timestamp=now,
+        battery_soc_percent=50,
+        operating_state="Ok",
+        communication_state=CommunicationState.ONLINE,
+    )
+    forecast = ForecastState(
+        timestamp=now,
+        remaining_pv_kwh=10,
+        expected_remaining_load_kwh=4,
+        communication_state=CommunicationState.ONLINE,
+    )
+    coordinator._forecast_provider = Mock(configured=True)
+    coordinator._forecast_provider.read_forecast_state = AsyncMock(return_value=forecast)
+    client = AsyncMock()
+    client.get_device_info.return_value = coordinator.data.device_info
+    client.read_state.return_value = battery
+    with patch("custom_components.powermanager.coordinator.SunnyIslandClient") as factory:
+        factory.return_value.__aenter__.return_value = client
+        data = await coordinator._async_update_data()
+    assert data.predictive_target_power_w == 0
+    assert data.predictive_forecast_surplus_kwh == 6
+    assert data.predictive_reason == "preserve_forecast_headroom"
+    assert data.predictive_charge_inhibit is True
 
 
 async def test_active_control_status_is_explicitly_monitor_only(coordinator):

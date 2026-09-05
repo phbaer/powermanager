@@ -66,7 +66,7 @@ end-of-day SoC targets, export capacity, and reported charge limits. It returns
 an explainable target, required energy, headroom, and an explicit charge-inhibit
 flag. A zero target is never interpreted as a generic inverter mode. The
 planner can replay timestamped inputs for backtests, but it is not connected to
-Home Assistant control and remains subordinate to `control.safety`.
+Home Assistant write control and remains subordinate to `control.safety`.
 
 ## Control milestones
 

@@ -6,7 +6,7 @@ import asyncio
 import logging
 import socket
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
@@ -26,6 +26,12 @@ from .const import (
     CONF_LOAD_FORECAST_HISTORY_DAYS,
     CONF_LOAD_POWER_ENTITY,
     CONF_PORT,
+    CONF_PREDICTIVE_CAPACITY_KWH,
+    CONF_PREDICTIVE_END_SOC_PERCENT,
+    CONF_PREDICTIVE_EXPORT_CAPACITY_KWH,
+    CONF_PREDICTIVE_GRID_CHARGE_ALLOWED,
+    CONF_PREDICTIVE_MAX_CHARGE_POWER_W,
+    CONF_PREDICTIVE_RESERVE_SOC_PERCENT,
     CONF_PRICE_ENTITY,
     CONF_PV_POWER_ENTITY,
     CONF_REMAINING_LOAD_FORECAST_ENTITY,
@@ -35,6 +41,11 @@ from .const import (
     CONF_STATIC_PRICE_PER_KWH,
     CONF_TELEMETRY_MAX_AGE,
     CONF_UNIT_ID,
+    DEFAULT_PREDICTIVE_CAPACITY_KWH,
+    DEFAULT_PREDICTIVE_END_SOC_PERCENT,
+    DEFAULT_PREDICTIVE_EXPORT_CAPACITY_KWH,
+    DEFAULT_PREDICTIVE_MAX_CHARGE_POWER_W,
+    DEFAULT_PREDICTIVE_RESERVE_SOC_PERCENT,
     DEFAULT_SCAN_INTERVAL_SECONDS,
     DEFAULT_TELEMETRY_MAX_AGE_SECONDS,
     DOMAIN,
@@ -48,6 +59,12 @@ from .core.powermanager_core.backends.sma_sunny_island import (
     SunnyIslandClient,
     SunnyIslandConnectionConfig,
 )
+from .core.powermanager_core.control.predictive import (
+    PredictiveInputs,
+    PredictivePlan,
+    PredictivePlanningError,
+    plan_predictive_charge,
+)
 from .core.powermanager_core.control.rules import parse_rules_document
 from .core.powermanager_core.control.runtime import ControlRuntime
 from .core.powermanager_core.control.watchdog import ControlWatchdog
@@ -57,6 +74,7 @@ from .core.powermanager_core.models import (
     CommunicationState,
     DeviceInfo,
     EnergyState,
+    ForecastState,
 )
 from .core.powermanager_core.telemetry import ExponentialBackoff
 from .ha_entity_provider import HomeAssistantEntityGridProvider
@@ -86,6 +104,12 @@ class PowerManagerData:
     control_mode: str = "monitor_only"
     active_control_available: bool = False
     control_block_reason: str = "active control is not commissioned"
+    predictive_target_power_w: float | None = None
+    predictive_target_soc_percent: float | None = None
+    predictive_forecast_surplus_kwh: float | None = None
+    predictive_headroom_kwh: float | None = None
+    predictive_charge_inhibit: bool | None = None
+    predictive_reason: str = "forecast_unavailable"
 
 
 class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
@@ -139,10 +163,37 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         )
         rules_yaml = entry.options.get(CONF_RULES_YAML)
         self._rules = parse_rules_document(yaml.safe_load(rules_yaml)) if rules_yaml else ()
+        self._timezone = _ha_timezone(hass)
         self._simulation_runtime = ControlRuntime(
             self._rules,
             watchdog=ControlWatchdog(timeout_seconds=max(30, self._poll_seconds * 3)),
-            timezone=_ha_timezone(hass),
+            timezone=self._timezone,
+        )
+        self._predictive_capacity_kwh = float(
+            entry.options.get(CONF_PREDICTIVE_CAPACITY_KWH, DEFAULT_PREDICTIVE_CAPACITY_KWH)
+        )
+        self._predictive_end_soc_percent = float(
+            entry.options.get(
+                CONF_PREDICTIVE_END_SOC_PERCENT, DEFAULT_PREDICTIVE_END_SOC_PERCENT
+            )
+        )
+        self._predictive_reserve_soc_percent = float(
+            entry.options.get(
+                CONF_PREDICTIVE_RESERVE_SOC_PERCENT, DEFAULT_PREDICTIVE_RESERVE_SOC_PERCENT
+            )
+        )
+        self._predictive_export_capacity_kwh = float(
+            entry.options.get(
+                CONF_PREDICTIVE_EXPORT_CAPACITY_KWH, DEFAULT_PREDICTIVE_EXPORT_CAPACITY_KWH
+            )
+        )
+        self._predictive_max_charge_power_w = float(
+            entry.options.get(
+                CONF_PREDICTIVE_MAX_CHARGE_POWER_W, DEFAULT_PREDICTIVE_MAX_CHARGE_POWER_W
+            )
+        )
+        self._predictive_grid_charge_allowed = bool(
+            entry.options.get(CONF_PREDICTIVE_GRID_CHARGE_ALLOWED, False)
         )
 
     def start_speedwire_monitor(self) -> None:
@@ -259,6 +310,7 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             energy_state, at=battery_state.timestamp, enabled=True
         )
         intent = decision.intent
+        predictive_plan = self._predictive_plan(battery_state, forecast_state)
         return self._with_observation(PowerManagerData(
             device_info=device_info,
             battery_state=battery_state,
@@ -269,7 +321,66 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             simulated_reason=decision.reason,
             simulated_restore_normal=decision.restore_normal,
             simulated_held=decision.held,
+            predictive_target_power_w=(predictive_plan.target_power_w if predictive_plan else None),
+            predictive_target_soc_percent=(
+                predictive_plan.target_soc_percent if predictive_plan else None
+            ),
+            predictive_forecast_surplus_kwh=(
+                predictive_plan.forecast_surplus_kwh if predictive_plan else None
+            ),
+            predictive_headroom_kwh=(predictive_plan.headroom_kwh if predictive_plan else None),
+            predictive_charge_inhibit=(
+                predictive_plan.charge_inhibit if predictive_plan else None
+            ),
+            predictive_reason=(
+                predictive_plan.reason
+                if predictive_plan
+                else self._predictive_reason(forecast_state)
+            ),
         ))
+
+    def _predictive_plan(
+        self, battery_state: BatteryState, forecast_state: ForecastState | None
+    ) -> PredictivePlan | None:
+        """Return a forecast plan for shadow sensors without any actuator call."""
+        if (
+            forecast_state is None
+            or forecast_state.communication_state is not CommunicationState.ONLINE
+            or forecast_state.remaining_pv_kwh is None
+            or forecast_state.expected_remaining_load_kwh is None
+            or battery_state.battery_soc_percent is None
+        ):
+            return None
+        try:
+            return plan_predictive_charge(
+                PredictiveInputs(
+                    timestamp=battery_state.timestamp,
+                    horizon_end=_next_local_midnight(battery_state.timestamp, self._timezone),
+                    usable_capacity_kwh=self._predictive_capacity_kwh,
+                    battery_soc_percent=battery_state.battery_soc_percent,
+                    end_soc_target_percent=self._predictive_end_soc_percent,
+                    reserve_soc_percent=self._predictive_reserve_soc_percent,
+                    remaining_pv_kwh=forecast_state.remaining_pv_kwh,
+                    remaining_load_kwh=forecast_state.expected_remaining_load_kwh,
+                    forecast_uncertainty_kwh=0.0,
+                    export_capacity_kwh=self._predictive_export_capacity_kwh,
+                    max_charge_power_w=self._predictive_max_charge_power_w,
+                    reported_charge_limit_w=battery_state.charge_limit_w,
+                    grid_charge_allowed=self._predictive_grid_charge_allowed,
+                )
+            )
+        except PredictivePlanningError:
+            return None
+
+    @staticmethod
+    def _predictive_reason(forecast_state) -> str:
+        if forecast_state is None:
+            return "forecast_unavailable"
+        if forecast_state.remaining_pv_kwh is None:
+            return "pv_forecast_unavailable"
+        if forecast_state.expected_remaining_load_kwh is None:
+            return "load_forecast_unavailable"
+        return "invalid_planning_inputs"
 
     def _schedule_retry(self) -> None:
         """Increase only the next read delay; successful reads reset it."""
@@ -294,3 +405,10 @@ def _ha_timezone(hass: HomeAssistant):
     except (ZoneInfoNotFoundError, AttributeError):
         _LOGGER.warning("Unknown Home Assistant timezone; using timestamps as provided")
         return None
+
+
+def _next_local_midnight(at: datetime, timezone) -> datetime:
+    """Return the next local midnight as an aware timestamp when possible."""
+    local = at.astimezone(timezone) if timezone is not None else at
+    next_day = local.date() + timedelta(days=1)
+    return datetime.combine(next_day, time.min, tzinfo=local.tzinfo)

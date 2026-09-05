@@ -92,7 +92,8 @@ The core also includes a predictive shadow planner that accounts for usable
 capacity, reserve and end-of-day targets, forecast uncertainty, export capacity,
 and charge limits. It produces explainable recommendations and deterministic
 replay results for future backtesting; it is not connected to Home Assistant
-control or any inverter write path.
+write control or any inverter write path. When forecast options are configured,
+Home Assistant exposes the recommendation and its reason as shadow sensors.
 
 Instead of supplying an expected-load forecast entity, PowerManager can estimate
 the remaining load until local midnight from the selected whole-home load-power

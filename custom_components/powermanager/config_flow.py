@@ -32,6 +32,12 @@ from .const import (
     CONF_LOAD_FORECAST_HISTORY_DAYS,
     CONF_LOAD_POWER_ENTITY,
     CONF_PORT,
+    CONF_PREDICTIVE_CAPACITY_KWH,
+    CONF_PREDICTIVE_END_SOC_PERCENT,
+    CONF_PREDICTIVE_EXPORT_CAPACITY_KWH,
+    CONF_PREDICTIVE_GRID_CHARGE_ALLOWED,
+    CONF_PREDICTIVE_MAX_CHARGE_POWER_W,
+    CONF_PREDICTIVE_RESERVE_SOC_PERCENT,
     CONF_PRICE_ENTITY,
     CONF_PV_POWER_ENTITY,
     CONF_REMAINING_LOAD_FORECAST_ENTITY,
@@ -43,6 +49,11 @@ from .const import (
     CONF_UNIT_ID,
     DEFAULT_LOAD_FORECAST_HISTORY_DAYS,
     DEFAULT_PORT,
+    DEFAULT_PREDICTIVE_CAPACITY_KWH,
+    DEFAULT_PREDICTIVE_END_SOC_PERCENT,
+    DEFAULT_PREDICTIVE_EXPORT_CAPACITY_KWH,
+    DEFAULT_PREDICTIVE_MAX_CHARGE_POWER_W,
+    DEFAULT_PREDICTIVE_RESERVE_SOC_PERCENT,
     DEFAULT_SCAN_INTERVAL_SECONDS,
     DEFAULT_TELEMETRY_MAX_AGE_SECONDS,
     DEFAULT_UNIT_ID,
@@ -136,6 +147,12 @@ class PowerManagerOptionsFlow(OptionsFlow):
             remaining_load_forecast_entity = user_input.get(CONF_REMAINING_LOAD_FORECAST_ENTITY)
             price_entity = user_input.get(CONF_PRICE_ENTITY)
             static_price = user_input.get(CONF_STATIC_PRICE_PER_KWH)
+            predictive_reserve = user_input.get(
+                CONF_PREDICTIVE_RESERVE_SOC_PERCENT, DEFAULT_PREDICTIVE_RESERVE_SOC_PERCENT
+            )
+            predictive_end = user_input.get(
+                CONF_PREDICTIVE_END_SOC_PERCENT, DEFAULT_PREDICTIVE_END_SOC_PERCENT
+            )
             rules_yaml = user_input.get(CONF_RULES_YAML)
             if static_price == "":
                 user_input.pop(CONF_STATIC_PRICE_PER_KWH, None)
@@ -165,6 +182,8 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 else:
                     if user_input[CONF_STATIC_PRICE_PER_KWH] < 0:
                         errors["base"] = "invalid_static_price"
+            if not errors and float(predictive_reserve) > float(predictive_end):
+                errors["base"] = "invalid_predictive_targets"
             if not errors:
                 return self.async_create_entry(title="", data=user_input)
 
@@ -221,6 +240,45 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 ): _ENERGY_ENTITY_SELECTOR,
                 self._optional_field(CONF_RULES_YAML, self._option(CONF_RULES_YAML)):
                     _RULES_SELECTOR,
+                vol.Optional(
+                    CONF_PREDICTIVE_CAPACITY_KWH,
+                    default=self._option_number_or(
+                        CONF_PREDICTIVE_CAPACITY_KWH, DEFAULT_PREDICTIVE_CAPACITY_KWH
+                    ),
+                ): _PREDICTIVE_CAPACITY_SELECTOR,
+                vol.Optional(
+                    CONF_PREDICTIVE_END_SOC_PERCENT,
+                    default=self._option_number_or(
+                        CONF_PREDICTIVE_END_SOC_PERCENT, DEFAULT_PREDICTIVE_END_SOC_PERCENT
+                    ),
+                ): _PREDICTIVE_SOC_SELECTOR,
+                vol.Optional(
+                    CONF_PREDICTIVE_RESERVE_SOC_PERCENT,
+                    default=self._option_number_or(
+                        CONF_PREDICTIVE_RESERVE_SOC_PERCENT,
+                        DEFAULT_PREDICTIVE_RESERVE_SOC_PERCENT,
+                    ),
+                ): _PREDICTIVE_SOC_SELECTOR,
+                vol.Optional(
+                    CONF_PREDICTIVE_EXPORT_CAPACITY_KWH,
+                    default=self._option_number_or(
+                        CONF_PREDICTIVE_EXPORT_CAPACITY_KWH,
+                        DEFAULT_PREDICTIVE_EXPORT_CAPACITY_KWH,
+                    ),
+                ): _PREDICTIVE_EXPORT_SELECTOR,
+                vol.Optional(
+                    CONF_PREDICTIVE_MAX_CHARGE_POWER_W,
+                    default=self._option_number_or(
+                        CONF_PREDICTIVE_MAX_CHARGE_POWER_W,
+                        DEFAULT_PREDICTIVE_MAX_CHARGE_POWER_W,
+                    ),
+                ): _PREDICTIVE_POWER_SELECTOR,
+                vol.Optional(
+                    CONF_PREDICTIVE_GRID_CHARGE_ALLOWED,
+                    default=self._config_entry.options.get(
+                        CONF_PREDICTIVE_GRID_CHARGE_ALLOWED, False
+                    ),
+                ): _BOOLEAN_SELECTOR,
                 vol.Required(
                     CONF_TELEMETRY_MAX_AGE,
                     default=self._config_entry.options.get(
@@ -249,6 +307,10 @@ class PowerManagerOptionsFlow(OptionsFlow):
         """Return an optional numeric default, preserving zero as a valid value."""
         value = self._config_entry.options.get(key)
         return float(value) if value is not None else None
+
+    def _option_number_or(self, key: str, default: float) -> float:
+        """Return a numeric option or its configured default."""
+        return self._option_number(key) if self._option_number(key) is not None else default
 
     def _option_list(self, key: str) -> list[str] | None:
         """Return a multi-selector default and preserve existing string options."""
@@ -286,3 +348,15 @@ _LOAD_FORECAST_DAYS_SELECTOR = NumberSelector(
     )
 )
 _RULES_SELECTOR = TextSelector(TextSelectorConfig(multiline=True))
+_PREDICTIVE_CAPACITY_SELECTOR = NumberSelector(
+    NumberSelectorConfig(min=0.1, max=1000, step=0.1, mode=NumberSelectorMode.BOX)
+)
+_PREDICTIVE_EXPORT_SELECTOR = NumberSelector(
+    NumberSelectorConfig(min=0, max=1000, step=0.1, mode=NumberSelectorMode.BOX)
+)
+_PREDICTIVE_SOC_SELECTOR = NumberSelector(
+    NumberSelectorConfig(min=0, max=100, step=0.1, mode=NumberSelectorMode.BOX)
+)
+_PREDICTIVE_POWER_SELECTOR = NumberSelector(
+    NumberSelectorConfig(min=0, max=100000, step=1, mode=NumberSelectorMode.BOX)
+)

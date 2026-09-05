@@ -144,6 +144,51 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
         ),
     ),
     PowerManagerSensorDescription(
+        key="predictive_target_power",
+        translation_key="predictive_target_power",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement="W",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.predictive_target_power_w,
+    ),
+    PowerManagerSensorDescription(
+        key="predictive_target_soc",
+        translation_key="predictive_target_soc",
+        native_unit_of_measurement="%",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.predictive_target_soc_percent,
+    ),
+    PowerManagerSensorDescription(
+        key="predictive_forecast_surplus",
+        translation_key="predictive_forecast_surplus",
+        native_unit_of_measurement="kWh",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.predictive_forecast_surplus_kwh,
+    ),
+    PowerManagerSensorDescription(
+        key="predictive_headroom",
+        translation_key="predictive_headroom",
+        native_unit_of_measurement="kWh",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.data.predictive_headroom_kwh,
+    ),
+    PowerManagerSensorDescription(
+        key="predictive_charge_inhibit",
+        translation_key="predictive_charge_inhibit",
+        value_fn=lambda coordinator: (
+            None
+            if coordinator.data.predictive_charge_inhibit is None
+            else "on"
+            if coordinator.data.predictive_charge_inhibit
+            else "off"
+        ),
+    ),
+    PowerManagerSensorDescription(
+        key="predictive_reason",
+        translation_key="predictive_reason",
+        value_fn=lambda coordinator: coordinator.data.predictive_reason,
+    ),
+    PowerManagerSensorDescription(
         key="simulated_rule",
         translation_key="simulated_rule",
         value_fn=lambda coordinator: coordinator.data.simulated_rule_id or "No matching rule",

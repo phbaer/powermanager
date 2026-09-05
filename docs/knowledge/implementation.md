@@ -42,7 +42,8 @@ The reusable predictive planner calculates forecast-adjusted surplus, required
 energy, battery headroom, and bounded optional grid charging without side
 effects. `replay_predictive_plans` provides deterministic input replay for later
 recorded-day backtests. It is shadow-only and is not connected to the HA
-coordinator or any write transport.
+write transport. HA can expose its target, headroom, inhibit flag, and reason
+through read-only sensors after forecast options are configured.
 
 The control adapter is not connected to the coordinator. Its setpoint boundary
 requires a successful read-only failsafe preflight, explicit ownership and

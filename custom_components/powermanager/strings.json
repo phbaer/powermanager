@@ -36,8 +36,14 @@
           "price_entity": "Market price entity",
           "static_price_per_kwh": "Fixed import price (EUR/kWh)",
           "remaining_pv_forecast_entity": "Remaining PV energy forecast entities",
-          "remaining_load_forecast_entity": "Expected remaining load energy entity"
-          ,"rules_yaml": "Simulation rules (YAML)"
+          "remaining_load_forecast_entity": "Expected remaining load energy entity",
+          "rules_yaml": "Simulation rules (YAML)",
+          "predictive_capacity_kwh": "Predictive usable capacity (kWh)",
+          "predictive_end_soc_percent": "Predictive end-of-day SoC (%)",
+          "predictive_reserve_soc_percent": "Predictive reserve SoC (%)",
+          "predictive_export_capacity_kwh": "Predictive export capacity (kWh)",
+          "predictive_max_charge_power_w": "Predictive maximum charge power (W)",
+          "predictive_grid_charge_allowed": "Allow predictive grid charging"
         },
         "data_description": {
           "scan_interval": "Seconds between read-only Sunny Island polls.",
@@ -53,8 +59,14 @@
           "price_entity": "Current import price with an explicit currency/kWh or currency/MWh unit. Leave empty when using a fixed tariff.",
           "static_price_per_kwh": "Fixed contract import price in EUR per kWh. Leave empty when using a market-price entity. Only one price source can be configured.",
           "remaining_pv_forecast_entity": "One or more remaining-energy forecasts for separate PV arrays or inverters, in Wh, kWh, or MWh. Values are combined only when every selected forecast is fresh (up to two hours old). Use remaining forecasts, not lifetime energy meters.",
-          "remaining_load_forecast_entity": "Forecast energy still expected to be consumed during the planning period, in Wh, kWh, or MWh. Use a remaining forecast, not a cumulative meter."
-          ,"rules_yaml": "Versioned YAML rules evaluated only for simulation. Rule execution and battery writes remain disabled."
+          "remaining_load_forecast_entity": "Forecast energy still expected to be consumed during the planning period, in Wh, kWh, or MWh. Use a remaining forecast, not a cumulative meter.",
+          "rules_yaml": "Versioned YAML rules evaluated only for simulation. Rule execution and battery writes remain disabled.",
+          "predictive_capacity_kwh": "Usable battery capacity assumed by the shadow planner.",
+          "predictive_end_soc_percent": "Target SoC at the next local midnight; this is a simulation target only.",
+          "predictive_reserve_soc_percent": "Minimum SoC reserve used by the shadow planner.",
+          "predictive_export_capacity_kwh": "Forecast energy that can be exported before the planner preserves additional headroom.",
+          "predictive_max_charge_power_w": "Upper bound for a future recommendation; no command is sent.",
+          "predictive_grid_charge_allowed": "Allow the shadow planner to recommend grid charging when forecast energy cannot meet the target."
         }
       }
     },
@@ -64,8 +76,9 @@
       "grid_power_source_conflict": "Choose either a signed grid exchange entity or the separate import/export power pair, not both.",
       "incomplete_grid_power_pair": "Configure both grid import power and grid export power, or leave both empty.",
       "load_forecast_source_conflict": "Choose either an explicit remaining-load forecast entity or historical load estimation, not both.",
-      "load_forecast_requires_load_power": "Historical load estimation requires a whole-home load power entity."
-      ,"invalid_rules": "Rules must be valid simulation-only YAML with version: 1 and enabled: false."
+      "load_forecast_requires_load_power": "Historical load estimation requires a whole-home load power entity.",
+      "invalid_rules": "Rules must be valid simulation-only YAML with version: 1 and enabled: false.",
+      "invalid_predictive_targets": "The predictive reserve SoC cannot exceed the end-of-day target."
     }
   },
   "entity": {
@@ -95,7 +108,13 @@
       "simulated_reason": {"name": "Simulated decision reason"},
       "control_mode": {"name": "Control mode"},
       "control_block_reason": {"name": "Control block reason"},
-      "speedwire_source_count": {"name": "Observed SMA Speedwire sources"}
+      "speedwire_source_count": {"name": "Observed SMA Speedwire sources"},
+      "predictive_target_power": {"name": "Predictive shadow target power"},
+      "predictive_target_soc": {"name": "Predictive shadow target SoC"},
+      "predictive_forecast_surplus": {"name": "Predictive forecast surplus"},
+      "predictive_headroom": {"name": "Predictive battery headroom"},
+      "predictive_charge_inhibit": {"name": "Predictive charge inhibit"},
+      "predictive_reason": {"name": "Predictive shadow reason"}
     }
   },
   "issues": {
