@@ -366,6 +366,7 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             inverter_grid = _aggregate_inverter_grid(inverter_states)
             if inverter_grid is not None:
                 grid_state = replace(grid_state, pv_power_w=inverter_grid.pv_power_w)
+        grid_state = _derive_load_power(grid_state, battery_state)
         forecast_state = _merge_forecasts(forecast_state, dashboard_runtime.forecast)
         forecast_state = _merge_forecasts(
             forecast_state,
@@ -562,6 +563,24 @@ def _aggregate_inverter_forecast(
             state.remaining_pv_forecast_kwh for state in forecast_states
         ),
         communication_state=CommunicationState.ONLINE,
+    )
+
+
+def _derive_load_power(grid: GridState | None, battery: BatteryState) -> GridState | None:
+    """Derive whole-home load from fresh site power balance when possible."""
+    if (
+        grid is None
+        or grid.load_power_w is not None
+        or grid.grid_power_w is None
+        or grid.pv_power_w is None
+        or battery.battery_power_w is None
+        or grid.communication_state is not CommunicationState.ONLINE
+        or battery.communication_state is not CommunicationState.ONLINE
+    ):
+        return grid
+    return replace(
+        grid,
+        load_power_w=grid.grid_power_w + grid.pv_power_w + battery.battery_power_w,
     )
 
 

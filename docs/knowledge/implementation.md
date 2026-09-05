@@ -46,8 +46,9 @@ The adapter also reads Home Assistant's Energy Dashboard manager. Its grid
 forecast entries are imported as defaults. The options flow displays the
 imported PV topology and blocks saving when a configured source has no usable
 instantaneous sensor. Since the dashboard stores no whole-home remaining-load
-forecast, the operator must provide one or enable Recorder-based estimation from
-a whole-home load sensor.
+forecast, the operator must provide one or enable Recorder-based estimation. When
+fresh grid, PV, and battery telemetry is available, the latter uses PowerManager's
+derived whole-home load sensor automatically.
 
 The core safety validator also checks direct model inputs: source communication
 state, per-source freshness, timestamps in the future, finite targets, battery

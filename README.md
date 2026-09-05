@@ -103,9 +103,11 @@ When the Home Assistant Energy Dashboard is configured, PowerManager imports its
 grid, solar, battery, tariff, and solar-forecast topology automatically. The
 options form prints every imported PV source and any missing instantaneous
 sensor. It refuses to save an incomplete dashboard topology until the missing
-source is supplied manually. A whole-home remaining-load forecast (or a
-whole-home load sensor plus historical estimation) is also required because
-the Energy Dashboard has no household load forecast.
+source is supplied manually. A whole-home remaining-load forecast (or the
+automatically derived PowerManager whole-home load sensor plus historical
+estimation) is also required because the Energy Dashboard has no household load
+forecast. The derived sensor is only populated when signed grid, PV, and battery
+telemetry is fresh.
 
 ```yaml
 inverters:

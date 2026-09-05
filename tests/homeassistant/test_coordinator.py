@@ -12,7 +12,11 @@ from custom_components.powermanager.binary_sensor import (
     ExternalControllerWarning,
 )
 from custom_components.powermanager.const import DOMAIN
-from custom_components.powermanager.coordinator import PowerManagerCoordinator, PowerManagerData
+from custom_components.powermanager.coordinator import (
+    PowerManagerCoordinator,
+    PowerManagerData,
+    _derive_load_power,
+)
 from custom_components.powermanager.core.powermanager_core.backends.sma_speedwire import (
     SpeedwireFrame,
 )
@@ -36,9 +40,52 @@ from custom_components.powermanager.core.powermanager_core.models import (
     DeviceInfo,
     EnergyState,
     ForecastState,
+    GridState,
     InverterState,
 )
 from custom_components.powermanager.sensor import SENSORS, PowerManagerSensor
+
+
+def test_derived_load_power_uses_normalized_site_balance() -> None:
+    """Fresh signed grid, PV, and battery values yield whole-home load."""
+    now = datetime.now(UTC)
+    grid = GridState(
+        timestamp=now,
+        grid_power_w=-2100,
+        pv_power_w=3000,
+        communication_state=CommunicationState.ONLINE,
+    )
+    battery = BatteryState(
+        timestamp=now,
+        battery_power_w=-820,
+        communication_state=CommunicationState.ONLINE,
+    )
+
+    derived = _derive_load_power(grid, battery)
+
+    assert derived is not None
+    assert derived.load_power_w == 80
+
+
+def test_derived_load_power_stays_unset_without_fresh_inputs() -> None:
+    """An offline input must not produce a synthetic load value."""
+    now = datetime.now(UTC)
+    grid = GridState(
+        timestamp=now,
+        grid_power_w=100,
+        pv_power_w=500,
+        communication_state=CommunicationState.ONLINE,
+    )
+    battery = BatteryState(
+        timestamp=now,
+        battery_power_w=200,
+        communication_state=CommunicationState.STALE,
+    )
+
+    derived = _derive_load_power(grid, battery)
+
+    assert derived is grid
+    assert derived.load_power_w is None
 
 
 @pytest.fixture

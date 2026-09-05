@@ -10,6 +10,7 @@ from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.config_entries import ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
     BooleanSelector,
     BooleanSelectorConfig,
@@ -153,12 +154,26 @@ class PowerManagerOptionsFlow(OptionsFlow):
             grid_power_entity = user_input.get(CONF_GRID_POWER_ENTITY)
             grid_import_power_entity = user_input.get(CONF_GRID_IMPORT_POWER_ENTITY)
             grid_export_power_entity = user_input.get(CONF_GRID_EXPORT_POWER_ENTITY)
-            load_power_entity = user_input.get(CONF_LOAD_POWER_ENTITY) or self._option(
-                CONF_LOAD_POWER_ENTITY
+            derived_load_entity = self._derived_load_power_entity()
+            load_power_entity = (
+                user_input.get(CONF_LOAD_POWER_ENTITY)
+                or self._option(CONF_LOAD_POWER_ENTITY)
+                or derived_load_entity
             )
-            estimate_remaining_load = user_input.get(CONF_ESTIMATE_REMAINING_LOAD, False)
-            remaining_load_forecast_entity = user_input.get(CONF_REMAINING_LOAD_FORECAST_ENTITY)
-            remaining_pv_forecast_entity = user_input.get(CONF_REMAINING_PV_FORECAST_ENTITY)
+            estimate_remaining_load = user_input.get(
+                CONF_ESTIMATE_REMAINING_LOAD,
+                self._config_entry.options.get(
+                    CONF_ESTIMATE_REMAINING_LOAD, bool(derived_load_entity)
+                ),
+            )
+            remaining_load_forecast_entity = user_input.get(
+                CONF_REMAINING_LOAD_FORECAST_ENTITY,
+                self._option(CONF_REMAINING_LOAD_FORECAST_ENTITY),
+            )
+            remaining_pv_forecast_entity = user_input.get(
+                CONF_REMAINING_PV_FORECAST_ENTITY,
+                self._option(CONF_REMAINING_PV_FORECAST_ENTITY),
+            )
             price_entity = user_input.get(CONF_PRICE_ENTITY)
             static_price = user_input.get(CONF_STATIC_PRICE_PER_KWH)
             predictive_reserve = user_input.get(
@@ -292,11 +307,16 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 ): _POWER_ENTITY_SELECTOR,
                 self._optional_field(CONF_PV_POWER_ENTITY, self._option(CONF_PV_POWER_ENTITY)):
                     _POWER_ENTITY_SELECTOR,
-                self._optional_field(CONF_LOAD_POWER_ENTITY, self._option(CONF_LOAD_POWER_ENTITY)):
-                    _POWER_ENTITY_SELECTOR,
+                self._optional_field(
+                    CONF_LOAD_POWER_ENTITY,
+                    self._option(CONF_LOAD_POWER_ENTITY) or self._derived_load_power_entity(),
+                ): _POWER_ENTITY_SELECTOR,
                 vol.Optional(
                     CONF_ESTIMATE_REMAINING_LOAD,
-                    default=self._config_entry.options.get(CONF_ESTIMATE_REMAINING_LOAD, False),
+                    default=self._config_entry.options.get(
+                        CONF_ESTIMATE_REMAINING_LOAD,
+                        bool(self._derived_load_power_entity()),
+                    ),
                 ): _BOOLEAN_SELECTOR,
                 vol.Optional(
                     CONF_CONTROL_OWNERSHIP_CONFIRMED,
@@ -444,6 +464,23 @@ class PowerManagerOptionsFlow(OptionsFlow):
     def _option(self, key: str) -> str | None:
         """Return an optional selector default without presenting an empty value."""
         return self._config_entry.options.get(key) or None
+
+    def _derived_load_power_entity(self) -> str | None:
+        """Return PowerManager's derived load sensor when it is registered."""
+        hass = getattr(self, "hass", None)
+        if hass is None:
+            return None
+        registry = er.async_get(hass)
+        unique_id = f"{self._config_entry.unique_id or self._config_entry.entry_id}_load_power"
+        return next(
+            (
+                entity.entity_id
+                for entity in registry.entities.values()
+                if entity.config_entry_id == self._config_entry.entry_id
+                and entity.unique_id == unique_id
+            ),
+            None,
+        )
 
     async def _energy_dashboard_configuration(self) -> EnergyDashboardConfiguration:
         """Return the live Energy Dashboard topology when HA provides it."""

@@ -143,8 +143,10 @@ restart without relying on packages installed by the development environment.
   mapping. Grid, solar, battery, tariff, and solar-forecast entries are shown in
   the options flow with missing instantaneous sensors called out. Saving is
   blocked until missing PV telemetry is supplied, and the operator must provide
-  a whole-home remaining-load forecast or enable historical estimation because
-  the Energy Dashboard does not provide that forecast.
+  a whole-home remaining-load forecast or enable historical estimation. When
+  fresh grid, PV, and battery telemetry is available, PowerManager supplies a
+  derived whole-home load sensor for that estimate; the Energy Dashboard itself
+  does not provide the remaining-load forecast.
 - [ ] Build a fixture-backed Speedwire source inventory and role decoder. Expose
   verified SMA and non-SMA telemetry through normalized HA sensors where a
   protocol adapter exists; retain address, identity confidence, capability, and
