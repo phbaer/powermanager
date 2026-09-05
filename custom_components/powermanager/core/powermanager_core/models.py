@@ -86,6 +86,26 @@ class ForecastState:
 
 
 @dataclass(frozen=True, slots=True)
+class InverterState:
+    """Normalized telemetry for one PV or hybrid inverter source."""
+
+    source_id: str
+    timestamp: datetime
+    import_power_w: float | None = None
+    export_power_w: float | None = None
+    pv_power_w: float | None = None
+    forecast: ForecastState | None = None
+    communication_state: CommunicationState = CommunicationState.UNKNOWN
+
+    @property
+    def net_power_w(self) -> float | None:
+        """Return import minus export when both directional values are present."""
+        if self.import_power_w is None or self.export_power_w is None:
+            return None
+        return self.import_power_w - self.export_power_w
+
+
+@dataclass(frozen=True, slots=True)
 class EnergyState:
     """Merged, timestamped energy state consumed by later control policies."""
 

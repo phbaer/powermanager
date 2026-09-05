@@ -93,6 +93,28 @@ Separate PV forecasts are summed only when every selected value is fresh. They
 are used only for simulation/policy eligibility; neither forecast data nor a
 policy can enable a device write.
 
+Multiple inverter telemetry sources can be configured with the optional
+`inverters_yaml` option. Each source is read from existing Home Assistant entities
+and receives separate import, export, PV, and remaining-energy forecast sensors:
+
+```yaml
+inverters:
+  - id: sunnyboy_main
+    import_power_entity: sensor.sunnyboy_import
+    export_power_entity: sensor.sunnyboy_export
+    pv_power_entity: sensor.sunnyboy_power
+    remaining_pv_forecast_entity: sensor.sunnyboy_remaining_forecast
+    expected_remaining_load_forecast_entity: sensor.sunnyboy_load_forecast
+  - id: garage_hybrid
+    pv_power_entity: sensor.garage_pv_power
+    remaining_pv_forecast_entity: sensor.garage_remaining_forecast
+```
+
+Directional values are normalized to watts and forecasts to kWh. When no aggregate
+site grid or forecast entity is configured, complete per-inverter readings are
+combined for simulation and the predictive shadow planner. The sources remain
+read-only and do not create an inverter write path.
+
 Simulation-only rules can be edited as versioned YAML in the integration
 options. PowerManager exposes the currently matching simulated rule and its
 requested target power, but never sends that target to the Sunny Island.

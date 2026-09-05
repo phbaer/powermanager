@@ -32,6 +32,7 @@ from custom_components.powermanager.core.powermanager_core.models import (
     DeviceInfo,
     EnergyState,
     ForecastState,
+    InverterState,
 )
 from custom_components.powermanager.sensor import SENSORS, PowerManagerSensor
 
@@ -303,6 +304,61 @@ async def test_coordinator_exposes_predictive_shadow_plan_without_writes(coordin
     assert data.predictive_forecast_surplus_kwh == 6
     assert data.predictive_reason == "preserve_forecast_headroom"
     assert data.predictive_charge_inhibit is True
+
+
+async def test_coordinator_aggregates_configured_inverter_telemetry(coordinator):
+    """Per-inverter directional power and forecasts feed aggregate simulation inputs."""
+    now = datetime.now(UTC)
+    forecast = ForecastState(
+        timestamp=now,
+        remaining_pv_kwh=4,
+        expected_remaining_load_kwh=2,
+        communication_state=CommunicationState.ONLINE,
+    )
+    inverter_states = (
+        InverterState(
+            "main_pv",
+            now,
+            import_power_w=100,
+            export_power_w=20,
+            pv_power_w=1500,
+            forecast=forecast,
+            communication_state=CommunicationState.ONLINE,
+        ),
+        InverterState(
+            "garage_pv",
+            now,
+            import_power_w=50,
+            export_power_w=10,
+            pv_power_w=500,
+            forecast=ForecastState(
+                timestamp=now,
+                remaining_pv_kwh=3,
+                expected_remaining_load_kwh=1,
+                communication_state=CommunicationState.ONLINE,
+            ),
+            communication_state=CommunicationState.ONLINE,
+        ),
+    )
+    coordinator._inverter_provider.read_states = AsyncMock(return_value=inverter_states)
+    client = AsyncMock()
+    client.get_device_info.return_value = coordinator.data.device_info
+    client.read_state.return_value = BatteryState(
+        timestamp=now,
+        battery_soc_percent=50,
+        communication_state=CommunicationState.ONLINE,
+    )
+    with patch("custom_components.powermanager.coordinator.SunnyIslandClient") as factory:
+        factory.return_value.__aenter__.return_value = client
+        data = await coordinator._async_update_data()
+
+    assert data.inverters == inverter_states
+    assert data.energy_state.grid is not None
+    assert data.energy_state.grid.grid_power_w == 120
+    assert data.energy_state.grid.pv_power_w == 2000
+    assert data.energy_state.forecast is not None
+    assert data.energy_state.forecast.remaining_pv_kwh == 7
+    assert data.energy_state.forecast.expected_remaining_load_kwh == 3
 
 
 async def test_active_control_status_is_explicitly_monitor_only(coordinator):

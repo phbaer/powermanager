@@ -24,6 +24,7 @@ async def async_get_config_entry_diagnostics(
         "last_update_success": coordinator.last_update_success,
         "device_info": asdict(data.device_info),
         "battery_state": asdict(data.battery_state),
+        "inverters": [asdict(inverter) for inverter in data.inverters],
         "possible_external_controller": data.possible_external_controller,
         "speedwire_source_count": len(data.speedwire_sources),
         "speedwire_external_sources": list(data.speedwire_external_sources),

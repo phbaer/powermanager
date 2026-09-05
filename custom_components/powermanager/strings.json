@@ -38,6 +38,7 @@
           "remaining_pv_forecast_entity": "Remaining PV energy forecast entities",
           "remaining_load_forecast_entity": "Expected remaining load energy entity",
           "rules_yaml": "Simulation rules (YAML)",
+          "inverters_yaml": "Per-inverter telemetry sources (YAML)",
           "predictive_capacity_kwh": "Predictive usable capacity (kWh)",
           "predictive_end_soc_percent": "Predictive end-of-day SoC (%)",
           "predictive_reserve_soc_percent": "Predictive reserve SoC (%)",
@@ -61,6 +62,7 @@
           "remaining_pv_forecast_entity": "One or more remaining-energy forecasts for separate PV arrays or inverters, in Wh, kWh, or MWh. Values are combined only when every selected forecast is fresh (up to two hours old). Use remaining forecasts, not lifetime energy meters.",
           "remaining_load_forecast_entity": "Forecast energy still expected to be consumed during the planning period, in Wh, kWh, or MWh. Use a remaining forecast, not a cumulative meter.",
           "rules_yaml": "Versioned YAML rules evaluated only for simulation. Rule execution and battery writes remain disabled.",
+          "inverters_yaml": "Optional YAML list of inverter IDs and HA entities for import, export, PV power, and remaining-energy forecasts. These sources are read-only and do not enable control.",
           "predictive_capacity_kwh": "Usable battery capacity assumed by the shadow planner.",
           "predictive_end_soc_percent": "Target SoC at the next local midnight; this is a simulation target only.",
           "predictive_reserve_soc_percent": "Minimum SoC reserve used by the shadow planner.",
@@ -78,6 +80,7 @@
       "load_forecast_source_conflict": "Choose either an explicit remaining-load forecast entity or historical load estimation, not both.",
       "load_forecast_requires_load_power": "Historical load estimation requires a whole-home load power entity.",
       "invalid_rules": "Rules must be valid simulation-only YAML with version: 1 and enabled: false.",
+      "invalid_inverters": "Inverter sources must be a valid YAML list with unique lowercase IDs and at least one entity per inverter.",
       "invalid_predictive_targets": "The predictive reserve SoC cannot exceed the end-of-day target."
     }
   },

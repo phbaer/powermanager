@@ -20,6 +20,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import PowerManagerCoordinator
+from .core.powermanager_core.models import InverterState
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -245,9 +246,25 @@ async def async_setup_entry(
 ) -> None:
     """Set up monitor-only sensors for a config entry."""
     coordinator: PowerManagerCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
+    entities: list[SensorEntity] = [
         PowerManagerSensor(coordinator, entry, description) for description in SENSORS
-    )
+    ]
+    for source in coordinator.inverter_sources:
+        configured = {
+            "import_power": source.import_power_entity,
+            "export_power": source.export_power_entity,
+            "pv_power": source.pv_power_entity,
+            "remaining_pv_forecast": source.remaining_pv_forecast_entity,
+            "expected_remaining_load_forecast": source.expected_remaining_load_forecast_entity,
+        }
+        if source.import_power_entity or source.export_power_entity:
+            configured["net_power"] = True
+        for metric, source_entity in configured.items():
+            if source_entity:
+                entities.append(
+                    InverterTelemetrySensor(coordinator, entry, source.source_id, metric)
+                )
+    async_add_entities(entities)
 
 
 class PowerManagerSensor(CoordinatorEntity[PowerManagerCoordinator], SensorEntity):
@@ -292,3 +309,59 @@ class PowerManagerSensor(CoordinatorEntity[PowerManagerCoordinator], SensorEntit
             "observed_sources": list(data.speedwire_sources),
             "external_sources": list(data.speedwire_external_sources),
         }
+
+
+class InverterTelemetrySensor(CoordinatorEntity[PowerManagerCoordinator], SensorEntity):
+    """Expose one configured inverter telemetry value as a read-only sensor."""
+
+    _attr_has_entity_name = False
+    _METADATA = {
+        "import_power": ("import power", "W", SensorDeviceClass.POWER),
+        "export_power": ("export power", "W", SensorDeviceClass.POWER),
+        "net_power": ("net power", "W", SensorDeviceClass.POWER),
+        "pv_power": ("PV power", "W", SensorDeviceClass.POWER),
+        "remaining_pv_forecast": ("remaining PV forecast", "kWh", None),
+        "expected_remaining_load_forecast": ("expected remaining load forecast", "kWh", None),
+    }
+
+    def __init__(
+        self,
+        coordinator: PowerManagerCoordinator,
+        entry: ConfigEntry,
+        source_id: str,
+        metric: str,
+    ) -> None:
+        super().__init__(coordinator)
+        label, unit, device_class = self._METADATA[metric]
+        self._source_id = source_id
+        self._metric = metric
+        self._attr_name = f"{source_id} {label}"
+        self._attr_unique_id = f"{entry.unique_id or entry.entry_id}_inverter_{source_id}_{metric}"
+        self._attr_native_unit_of_measurement = unit
+        self._attr_device_class = device_class
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_device_info = HaDeviceInfo(
+            identifiers={(DOMAIN, f"{entry.unique_id or entry.entry_id}:inverter:{source_id}")},
+            manufacturer="PowerManager",
+            model=source_id,
+        )
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the configured inverter metric in normalized units."""
+        state = next(
+            (item for item in self.coordinator.data.inverters if item.source_id == self._source_id),
+            None,
+        )
+        return _inverter_metric_value(state, self._metric) if state else None
+
+
+def _inverter_metric_value(state: InverterState, metric: str) -> float | None:
+    """Select a normalized metric from one inverter state."""
+    if metric == "remaining_pv_forecast":
+        return state.forecast.remaining_pv_kwh if state.forecast else None
+    if metric == "expected_remaining_load_forecast":
+        return state.forecast.expected_remaining_load_kwh if state.forecast else None
+    if metric == "net_power":
+        return state.net_power_w
+    return getattr(state, f"{metric}_w")

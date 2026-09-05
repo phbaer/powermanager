@@ -82,6 +82,24 @@ async def test_options_flow_validates_price_conflict_with_valid_rules() -> None:
     assert show_form.call_args.kwargs["errors"] == {"base": "price_source_conflict"}
 
 
+async def test_options_flow_rejects_invalid_inverter_sources() -> None:
+    """Per-inverter telemetry YAML must be validated before saving options."""
+    flow = PowerManagerOptionsFlow(Mock(options={}))
+    result = await flow.async_step_init()
+    data = result["data_schema"](
+        {
+            "scan_interval": 30,
+            "telemetry_max_age": 120,
+            "inverters_yaml": "inverters: [{id: Invalid, pv_power_entity: sensor.pv}]",
+        }
+    )
+    with patch.object(flow, "async_show_form", return_value={"errors": {}}) as show_form:
+        response = await flow.async_step_init(data)
+
+    assert response == {"errors": {}}
+    assert show_form.call_args.kwargs["errors"] == {"base": "invalid_inverters"}
+
+
 async def test_setup_failure_stops_monitor_and_removes_coordinator(hass) -> None:
     """A failed platform setup cannot leave a retrying Speedwire task behind."""
     entry = MockConfigEntry(

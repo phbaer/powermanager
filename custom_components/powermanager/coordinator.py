@@ -23,6 +23,7 @@ from .const import (
     CONF_GRID_IMPORT_POWER_ENTITY,
     CONF_GRID_POWER_ENTITY,
     CONF_HOST,
+    CONF_INVERTERS,
     CONF_LOAD_FORECAST_HISTORY_DAYS,
     CONF_LOAD_POWER_ENTITY,
     CONF_PORT,
@@ -69,16 +70,20 @@ from .core.powermanager_core.control.rules import parse_rules_document
 from .core.powermanager_core.control.runtime import ControlRuntime
 from .core.powermanager_core.control.watchdog import ControlWatchdog
 from .core.powermanager_core.exceptions import PowerManagerError, UnsupportedDeviceError
+from .core.powermanager_core.inverters import InverterSourceConfig, parse_inverter_sources
 from .core.powermanager_core.models import (
     BatteryState,
     CommunicationState,
     DeviceInfo,
     EnergyState,
     ForecastState,
+    GridState,
+    InverterState,
 )
 from .core.powermanager_core.telemetry import ExponentialBackoff
 from .ha_entity_provider import HomeAssistantEntityGridProvider
 from .ha_forecast_provider import HomeAssistantEntityForecastProvider
+from .ha_inverter_provider import HomeAssistantEntityInverterProvider
 from .ha_price_provider import HomeAssistantEntityPriceProvider
 
 _LOGGER = logging.getLogger(__name__)
@@ -91,6 +96,7 @@ class PowerManagerData:
     device_info: DeviceInfo
     battery_state: BatteryState
     energy_state: EnergyState
+    inverters: tuple[InverterState, ...] = ()
     possible_external_controller: bool = False
     speedwire_sources: tuple[str, ...] = ()
     speedwire_external_sources: tuple[str, ...] = ()
@@ -155,6 +161,14 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             entry.options.get(CONF_ESTIMATE_REMAINING_LOAD, False),
             int(entry.options.get(CONF_LOAD_FORECAST_HISTORY_DAYS, 7)),
         )
+        self._inverter_sources: tuple[InverterSourceConfig, ...] = parse_inverter_sources(
+            entry.options.get(CONF_INVERTERS)
+        )
+        self._inverter_provider = HomeAssistantEntityInverterProvider(
+            hass,
+            self._inverter_sources,
+            entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS),
+        )
         self._speedwire_monitor = ExternalControllerMonitor(self._config.host)
         self._speedwire_task: asyncio.Task[None] | None = None
         self._poll_seconds = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS)
@@ -201,6 +215,11 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         """Start passive multicast observation without affecting Modbus polling."""
         if self._speedwire_task is None:
             self._speedwire_task = asyncio.create_task(self._observe_speedwire())
+
+    @property
+    def inverter_sources(self) -> tuple[InverterSourceConfig, ...]:
+        """Return configured per-inverter telemetry sources."""
+        return self._inverter_sources
 
     async def stop_speedwire_monitor(self) -> None:
         """Stop passive multicast observation during unload."""
@@ -315,6 +334,11 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             if self._forecast_provider.configured
             else None
         )
+        inverter_states = await self._inverter_provider.read_states()
+        if grid_state is None:
+            grid_state = _aggregate_inverter_grid(inverter_states)
+        if forecast_state is None:
+            forecast_state = _aggregate_inverter_forecast(inverter_states)
         energy_state = EnergyState(
             timestamp=battery_state.timestamp,
             battery=battery_state,
@@ -331,6 +355,7 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             device_info=device_info,
             battery_state=battery_state,
             energy_state=energy_state,
+            inverters=inverter_states,
             simulated_rule_id=intent.rule_id if intent else None,
             simulated_target_power_w=intent.target_power_w if intent else None,
             simulated_accepted=decision.accepted,
@@ -412,6 +437,62 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             severity=IssueSeverity.WARNING,
             translation_key=translation_key,
         )
+
+
+def _aggregate_inverter_grid(states: tuple[InverterState, ...]) -> GridState | None:
+    """Aggregate complete directional readings when no site grid entity exists."""
+    directional = [
+        state
+        for state in states
+        if state.import_power_w is not None or state.export_power_w is not None
+    ]
+    if directional and any(
+        state.import_power_w is None or state.export_power_w is None for state in directional
+    ):
+        directional = []
+    pv_values = [state.pv_power_w for state in states if state.pv_power_w is not None]
+    if not directional and not pv_values:
+        return None
+    timestamps = [state.timestamp for state in states]
+    return GridState(
+        timestamp=max(timestamps),
+        grid_power_w=(
+            sum(state.import_power_w - state.export_power_w for state in directional)
+            if directional
+            else None
+        ),
+        pv_power_w=sum(pv_values) if pv_values else None,
+        communication_state=(
+            CommunicationState.ONLINE
+            if any(state.communication_state is CommunicationState.ONLINE for state in states)
+            else CommunicationState.UNKNOWN
+        ),
+    )
+
+
+def _aggregate_inverter_forecast(states: tuple[InverterState, ...]) -> ForecastState | None:
+    """Aggregate forecasts only when every configured forecast is complete and fresh."""
+    forecasts = [state.forecast for state in states]
+    if not forecasts or any(forecast is None for forecast in forecasts):
+        return None
+    if any(
+        forecast.communication_state is not CommunicationState.ONLINE
+        or forecast.remaining_pv_kwh is None
+        or forecast.expected_remaining_load_kwh is None
+        for forecast in forecasts
+        if forecast is not None
+    ):
+        return None
+    return ForecastState(
+        timestamp=max(forecast.timestamp for forecast in forecasts if forecast is not None),
+        remaining_pv_kwh=sum(
+            forecast.remaining_pv_kwh for forecast in forecasts if forecast is not None
+        ),
+        expected_remaining_load_kwh=sum(
+            forecast.expected_remaining_load_kwh for forecast in forecasts if forecast is not None
+        ),
+        communication_state=CommunicationState.ONLINE,
+    )
 
 
 def _ha_timezone(hass: HomeAssistant):

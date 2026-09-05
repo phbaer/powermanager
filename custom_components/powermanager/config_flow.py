@@ -29,6 +29,7 @@ from .const import (
     CONF_GRID_IMPORT_POWER_ENTITY,
     CONF_GRID_POWER_ENTITY,
     CONF_HOST,
+    CONF_INVERTERS,
     CONF_LOAD_FORECAST_HISTORY_DAYS,
     CONF_LOAD_POWER_ENTITY,
     CONF_PORT,
@@ -71,6 +72,7 @@ from .core.powermanager_core.backends.sma_sunny_island import (
 )
 from .core.powermanager_core.control.rules import parse_rules_document
 from .core.powermanager_core.exceptions import BackendConnectionError, UnsupportedDeviceError
+from .core.powermanager_core.inverters import parse_inverter_sources
 
 
 async def validate_input(data: dict[str, Any]) -> str:
@@ -154,6 +156,7 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 CONF_PREDICTIVE_END_SOC_PERCENT, DEFAULT_PREDICTIVE_END_SOC_PERCENT
             )
             rules_yaml = user_input.get(CONF_RULES_YAML)
+            inverters_yaml = user_input.get(CONF_INVERTERS)
             if static_price == "":
                 user_input.pop(CONF_STATIC_PRICE_PER_KWH, None)
                 static_price = None
@@ -172,6 +175,11 @@ class PowerManagerOptionsFlow(OptionsFlow):
                     parse_rules_document(yaml.safe_load(rules_yaml))
                 except (TypeError, ValueError, yaml.YAMLError):
                     errors["base"] = "invalid_rules"
+            if not errors and inverters_yaml:
+                try:
+                    parse_inverter_sources(inverters_yaml)
+                except (TypeError, ValueError, yaml.YAMLError):
+                    errors["base"] = "invalid_inverters"
             if not errors and price_entity and static_price is not None:
                 errors["base"] = "price_source_conflict"
             elif not errors and static_price is not None:
@@ -240,6 +248,10 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 ): _ENERGY_ENTITY_SELECTOR,
                 self._optional_field(CONF_RULES_YAML, self._option(CONF_RULES_YAML)):
                     _RULES_SELECTOR,
+                vol.Optional(
+                    CONF_INVERTERS,
+                    default=self._config_entry.options.get(CONF_INVERTERS, ""),
+                ): _INVERTERS_SELECTOR,
                 vol.Optional(
                     CONF_PREDICTIVE_CAPACITY_KWH,
                     default=self._option_number_or(
@@ -348,6 +360,7 @@ _LOAD_FORECAST_DAYS_SELECTOR = NumberSelector(
     )
 )
 _RULES_SELECTOR = TextSelector(TextSelectorConfig(multiline=True))
+_INVERTERS_SELECTOR = TextSelector(TextSelectorConfig(multiline=True))
 _PREDICTIVE_CAPACITY_SELECTOR = NumberSelector(
     NumberSelectorConfig(min=0.1, max=1000, step=0.1, mode=NumberSelectorMode.BOX)
 )

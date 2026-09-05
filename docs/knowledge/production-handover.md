@@ -131,6 +131,10 @@ restart without relying on packages installed by the development environment.
   alongside scheduled Modbus updates.
 - [ ] Validate multicast reception/recovery on the deployment network; document
   interface/relay limitations and identify the Home Manager generation if required.
+- [x] Add optional HA entity-backed multi-inverter ingestion. Each configured
+  source has normalized import/export, PV, and remaining-energy forecast values;
+  complete source readings aggregate into simulation inputs when site-level
+  entities are absent, and configured values are exposed as read-only HA sensors.
 - [ ] Build a fixture-backed Speedwire source inventory and role decoder. Expose
   verified SMA and non-SMA telemetry through normalized HA sensors where a
   protocol adapter exists; retain address, identity confidence, capability, and
