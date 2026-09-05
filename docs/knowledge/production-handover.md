@@ -78,6 +78,9 @@ Complete each acceptance gate before advancing to its dependent stage.
   caught and withheld so optional forecasting cannot break battery monitoring.
 - [ ] Install the actual HACS release archive into a clean HA environment without
   manually installing dependencies.
+- [ ] Replace the stale deployment on the supervised HA instance with the reviewed
+  archive using a restorable backup, reload the entry, and repeat read-only entity
+  and recovery checks; keep active control disabled.
 - [ ] Validate the declared minimum and a current supported HA version; correct
   compatibility metadata if necessary.
 - [x] Keep the manifest and HACS metadata aligned on the declared minimum
