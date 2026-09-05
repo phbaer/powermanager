@@ -78,8 +78,10 @@ restart without relying on packages installed by the development environment.
 
 ### 2. Finish monitoring reliability and release gates
 
-- [ ] Test full setup/entity creation, connection failure/recovery, options reload,
-  unload, and setup-failure cleanup with HA fixtures.
+- [x] Test full read-only setup/entity creation and connection failure/recovery
+  with HA fixtures.
+- [ ] Exercise options reload through HA's config-entry lifecycle; unload and
+  setup-failure cleanup are covered separately below.
 - [x] Entry lifecycle cleanup is covered: successful forwarding is limited to
   monitor platforms, a failed forward stops the passive listener, and normal
   unload removes the coordinator before HA retries or releases the entry.

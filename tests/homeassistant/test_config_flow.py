@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -12,7 +13,11 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.powermanager import PLATFORMS, async_setup_entry, async_unload_entry
 from custom_components.powermanager.config_flow import PowerManagerOptionsFlow
 from custom_components.powermanager.const import DOMAIN
-from custom_components.powermanager.core.powermanager_core.models import CommunicationState
+from custom_components.powermanager.core.powermanager_core.models import (
+    BatteryState,
+    CommunicationState,
+    DeviceInfo,
+)
 from custom_components.powermanager.ha_price_provider import HomeAssistantEntityPriceProvider
 
 
@@ -133,3 +138,37 @@ async def test_unload_stops_monitor_and_removes_coordinator(hass) -> None:
 
     coordinator.stop_speedwire_monitor.assert_awaited_once_with()
     assert entry.entry_id not in hass.data[DOMAIN]
+
+
+async def test_full_read_only_setup_forwards_entities_and_unloads(hass) -> None:
+    """A real coordinator refresh can create monitor entities and unload cleanly."""
+    from custom_components.powermanager.coordinator import PowerManagerCoordinator
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"host": "127.0.0.1", "port": 502, "unit_id": 3},
+    )
+    entry.add_to_hass(hass)
+    now = datetime.now(UTC)
+    client = AsyncMock()
+    client.get_device_info.return_value = DeviceInfo(
+        "sma_sunny_island", "SI4.4M-12", "305419896", "01.05.10.R", 9332, True
+    )
+    client.read_state.return_value = BatteryState(
+        timestamp=now,
+        battery_soc_percent=50,
+        communication_state=CommunicationState.ONLINE,
+    )
+    with (
+        patch("custom_components.powermanager.coordinator.SunnyIslandClient") as factory,
+        patch.object(PowerManagerCoordinator, "start_speedwire_monitor"),
+    ):
+        factory.return_value.__aenter__.return_value = client
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        assert entry.entry_id in hass.data[DOMAIN]
+        assert any(
+            state.entity_id.startswith("sensor.")
+            for state in hass.states.async_all()
+        )
+        assert await hass.config_entries.async_unload(entry.entry_id)
