@@ -55,6 +55,14 @@ class DisconnectTransport(FakeTransport):
         await super().write_holding_registers(address, values, unit_id)
 
 
+class WriteOnlyControlTransport(FakeTransport):
+    """Expose SMA's write-only communication-control sentinel on readback."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.reads[40151] = [0xFFFF, 0xFFFD]
+
+
 def test_control_is_locked_by_default() -> None:
     transport = FakeTransport()
     adapter = SunnyIslandControlAdapter(transport)
@@ -158,7 +166,17 @@ def test_bounded_session_restores_normal_operation() -> None:
     )
     asyncio.run(ControlCommandSession(adapter, interval_seconds=0.5).run_for(100, 0.001))
     assert transport.calls[0][0] == 40149
-    assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]
+    assert transport.calls[-1:] == [(40151, [0, 802], 3)]
+
+
+def test_bounded_session_does_not_rewrite_write_only_control_state() -> None:
+    transport = WriteOnlyControlTransport()
+    adapter = SunnyIslandControlAdapter(
+        transport,
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+    )
+    asyncio.run(ControlCommandSession(adapter, interval_seconds=0.5).run_for(100, 0.001))
+    assert all(address == 40149 for address, _, _ in transport.calls)
 
 
 def test_session_rejects_failed_failsafe_preflight() -> None:
@@ -234,7 +252,7 @@ def test_session_revalidates_before_each_heartbeat() -> None:
             .run_for(100, 0.01)
         )
     assert calls == 2
-    assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]
+    assert transport.calls[-1:] == [(40151, [0, 802], 3)]
 
 
 def test_disconnected_transport_fails_session_and_restores_baseline() -> None:
@@ -246,7 +264,7 @@ def test_disconnected_transport_fails_session_and_restores_baseline() -> None:
     session = ControlCommandSession(adapter, max_duration_seconds=1)
     with pytest.raises(BackendConnectionError, match="disconnect"):
         asyncio.run(session.run(100, asyncio.Event()))
-    assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]
+    assert transport.calls[-1:] == [(40151, [0, 802], 3)]
     assert [(event.kind, event.reason) for event in session.events[-2:]] == [
         ("session_failed", "heartbeat"),
         ("baseline_restored", None),
@@ -265,7 +283,7 @@ def test_unbounded_run_is_stopped_by_maximum_duration() -> None:
         )
     )
     assert transport.calls[0][0] == 40149
-    assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]
+    assert transport.calls[-1:] == [(40151, [0, 802], 3)]
 
 
 def test_restore_attempts_mode_after_communication_write_failure() -> None:
@@ -313,7 +331,7 @@ def test_overlapping_sessions_are_rejected_and_first_session_restores() -> None:
         first.cancel()
         with pytest.raises(asyncio.CancelledError):
             await first
-        assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]
+        assert transport.calls[-1:] == [(40151, [0, 802], 3)]
 
     asyncio.run(run_test())
 
@@ -336,6 +354,6 @@ def test_cancellation_restores_baseline() -> None:
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
-        assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]
+        assert transport.calls[-1:] == [(40151, [0, 802], 3)]
 
     asyncio.run(run_test())

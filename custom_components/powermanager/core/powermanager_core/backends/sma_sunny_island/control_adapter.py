@@ -59,7 +59,7 @@ class ControlBaseline:
     """Operating values captured before a bounded external-control session."""
 
     external_setpoint_mode: int
-    communication_control: int
+    communication_control: int | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,9 +118,17 @@ class SunnyIslandControlAdapter:
 
     async def capture_baseline(self) -> ControlBaseline:
         """Read operating values that a session must restore afterwards."""
+        external_mode = await self._read_u32(40210)
+        if external_mode != 1079:
+            raise ControlWriteError(
+                "Sunny Island is not in the configured external setpoint mode"
+            )
+        communication_control = await self._read_u32(40151)
+        if communication_control not in (802, 803):
+            communication_control = None
         return ControlBaseline(
-            external_setpoint_mode=await self._read_u32(40210),
-            communication_control=await self._read_u32(40151),
+            external_setpoint_mode=external_mode,
+            communication_control=communication_control,
         )
 
     async def restore_baseline(self, baseline: ControlBaseline) -> None:
@@ -130,10 +138,14 @@ class SunnyIslandControlAdapter:
         ownership must never prevent the cleanup needed to stop external commands.
         """
         write_errors: list[Exception] = []
-        for address, value in (
-            (40151, baseline.communication_control),
-            (40210, baseline.external_setpoint_mode),
-        ):
+        writes = []
+        if baseline.communication_control is not None:
+            writes.append((40151, baseline.communication_control))
+        # A normal bounded session never changes the configured external mode.
+        # Avoid rewriting it, especially when the device exposes 40151 as WO.
+        if baseline.external_setpoint_mode != 1079:
+            writes.append((40210, baseline.external_setpoint_mode))
+        for address, value in writes:
             try:
                 await self._write_u32(
                     address, value, require_guard=False, require_preflight=False
