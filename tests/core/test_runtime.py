@@ -94,3 +94,85 @@ def test_runtime_applies_rule_cooldown() -> None:
     assert asyncio.run(runtime.cycle(energy, at=at, enabled=True)).accepted
     blocked = asyncio.run(runtime.cycle(energy, at=at + timedelta(seconds=10), enabled=True))
     assert not blocked.accepted and blocked.reason == "rule cooldown active"
+
+
+def test_higher_priority_rule_preempts_a_held_rule() -> None:
+    at = datetime(2026, 1, 1, 12, tzinfo=UTC)
+    battery = BatteryState(
+        timestamp=at,
+        battery_soc_percent=50,
+        operating_state="Ok",
+        communication_state=CommunicationState.ONLINE,
+    )
+    rules = (
+        ControlRule("low", 10, RuleConditions(grid_power_below_w=-500), 500, hold_seconds=60),
+        ControlRule("high", 20, RuleConditions(grid_power_below_w=-1000), 1500, hold_seconds=60),
+    )
+    runtime = ControlRuntime(rules)
+    first = EnergyState(
+        timestamp=at,
+        battery=battery,
+        grid=GridState(
+            timestamp=at, grid_power_w=-800, communication_state=CommunicationState.ONLINE
+        ),
+    )
+    assert asyncio.run(runtime.cycle(first, at=at, enabled=True)).intent.rule_id == "low"
+    second_at = at + timedelta(seconds=10)
+    second = EnergyState(
+        timestamp=second_at,
+        battery=BatteryState(
+            timestamp=second_at,
+            battery_soc_percent=50,
+            operating_state="Ok",
+            communication_state=CommunicationState.ONLINE,
+        ),
+        grid=GridState(
+            timestamp=second_at,
+            grid_power_w=-1200,
+            communication_state=CommunicationState.ONLINE,
+        ),
+    )
+    decision = asyncio.run(runtime.cycle(second, at=second_at, enabled=True))
+    assert decision.intent is not None and decision.intent.rule_id == "high"
+    assert not decision.held
+
+
+def test_disabling_runtime_requests_restore_and_clears_hold() -> None:
+    at = datetime(2026, 1, 1, 12, tzinfo=UTC)
+    energy = EnergyState(
+        timestamp=at,
+        battery=BatteryState(
+            timestamp=at,
+            battery_soc_percent=50,
+            operating_state="Ok",
+            communication_state=CommunicationState.ONLINE,
+        ),
+    )
+    runtime = ControlRuntime((ControlRule("always", 1, RuleConditions(), 100, hold_seconds=60),))
+    assert asyncio.run(runtime.cycle(energy, at=at, enabled=True)).accepted
+    disabled = asyncio.run(runtime.cycle(energy, at=at + timedelta(seconds=1), enabled=False))
+    assert disabled.restore_normal and disabled.reason == "control is disabled"
+    recovered = asyncio.run(runtime.cycle(energy, at=at + timedelta(seconds=2), enabled=True))
+    assert recovered.accepted
+
+
+def test_watchdog_expiry_recovers_on_next_cycle() -> None:
+    at = datetime(2026, 1, 1, 12, tzinfo=UTC)
+    energy = EnergyState(
+        timestamp=at,
+        battery=BatteryState(
+            timestamp=at,
+            battery_soc_percent=50,
+            operating_state="Ok",
+            communication_state=CommunicationState.ONLINE,
+        ),
+    )
+    runtime = ControlRuntime(
+        (ControlRule("always", 1, RuleConditions(), 100),),
+        watchdog=ControlWatchdog(timeout_seconds=30),
+    )
+    assert asyncio.run(runtime.cycle(energy, at=at, enabled=True)).accepted
+    expired = asyncio.run(runtime.cycle(energy, at=at + timedelta(seconds=31), enabled=True))
+    assert expired.restore_normal
+    recovered = asyncio.run(runtime.cycle(energy, at=at + timedelta(seconds=32), enabled=True))
+    assert recovered.accepted

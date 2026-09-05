@@ -49,12 +49,28 @@ class ControlRuntime:
         """Run one side-effect-free control cycle."""
         watchdog_status = self._watchdog.status(at)
         if watchdog_status.last_heartbeat is not None and watchdog_status.expired:
+            self._held_intent = None
+            self._cooldown_until = None
+            self._watchdog.reset()
             return ControlDecision(None, False, "watchdog expired", True)
+        if not enabled:
+            self._held_intent = None
+            self._cooldown_until = None
+            return ControlDecision(None, False, "control is disabled", True)
         held = self._held_intent is not None and at < (
             self._held_intent.evaluated_at + timedelta(seconds=self._held_intent.hold_seconds)
         )
         intent = self._held_intent
-        if intent is None or at >= intent.evaluated_at + timedelta(seconds=intent.hold_seconds):
+        if held:
+            candidate = evaluate_rules(energy, self._rules, at=at, timezone=self._timezone)
+            if candidate is not None and candidate.rule_id != intent.rule_id:
+                held_priority = self._priority_for(intent.rule_id)
+                candidate_priority = self._priority_for(candidate.rule_id)
+                if candidate_priority > held_priority:
+                    intent = candidate
+                    held = False
+                    self._cooldown_until = None
+        if not held:
             held = False
             if self._cooldown_until is not None and at < self._cooldown_until:
                 return ControlDecision(None, False, "rule cooldown active", False)
@@ -78,3 +94,7 @@ class ControlRuntime:
     def actuator(self) -> SimulationActuator:
         """Expose the simulation trace for inspection."""
         return self._actuator
+
+    def _priority_for(self, rule_id: str) -> int:
+        """Return a rule priority for deterministic hold preemption."""
+        return next((rule.priority for rule in self._rules if rule.rule_id == rule_id), -2**31)

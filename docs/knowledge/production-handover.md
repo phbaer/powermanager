@@ -100,9 +100,11 @@ required checks.
 - [x] Use an explicit local timezone for rule windows. HA resolves its configured
   timezone and the core accepts it independently. Test Berlin summer/winter time,
   DST, and overnight windows with recorded fixtures.
-- [ ] Define hold/cooldown and preemption for changed/missing inputs, higher-priority
-  rules, disablement, and no-match decisions.
-- [ ] Define recoverable watchdog expiry and explicit restoration decisions.
+- [x] Define hold/cooldown and preemption for changed/missing inputs, higher-priority
+  rules, disablement, and no-match decisions. Higher-priority matches preempt a
+  held lower-priority rule; disablement clears state and requests restoration.
+- [x] Define recoverable watchdog expiry and explicit restoration decisions. An
+  expired watchdog requests restoration and the next cycle can recover cleanly.
 - [x] Expose rule, target, acceptance/rejection reason, held state, watchdog
   restoration, and simulation decision through HA sensors and diagnostics.
 

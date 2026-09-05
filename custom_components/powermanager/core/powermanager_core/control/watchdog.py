@@ -28,6 +28,10 @@ class ControlWatchdog:
         """Record a successful control cycle heartbeat."""
         self._last_heartbeat = at
 
+    def reset(self) -> None:
+        """Clear an expired heartbeat so a later cycle can recover explicitly."""
+        self._last_heartbeat = None
+
     def status(self, at: datetime) -> WatchdogStatus:
         """Return status and whether a restore-normal action is required."""
         expires_at = (
