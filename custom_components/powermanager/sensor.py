@@ -52,6 +52,11 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
         value_fn=lambda coordinator: coordinator.data.battery_state.operating_state,
     ),
     PowerManagerSensorDescription(
+        key="event_code",
+        translation_key="event_code",
+        value_fn=lambda coordinator: coordinator.data.battery_state.event_code,
+    ),
+    PowerManagerSensorDescription(
         key="battery_soc",
         translation_key="battery_soc",
         device_class=SensorDeviceClass.BATTERY,

@@ -140,6 +140,7 @@
       "firmware_version": {"name": "Firmware version"},
       "communication_state": {"name": "Communication state"},
       "operating_state": {"name": "Operating state"},
+      "event_code": {"name": "Current SMA event code"},
       "battery_soc": {"name": "Battery state of charge"},
       "battery_power": {"name": "Battery power"},
       "battery_current": {"name": "Battery current"},

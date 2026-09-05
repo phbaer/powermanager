@@ -73,7 +73,7 @@ def _online_energy(now: datetime, **battery_kwargs: object) -> EnergyState:
     )
 
 
-def test_safety_rejects_actions_without_soc_or_with_unsupported_state() -> None:
+def test_safety_rejects_actions_without_soc_and_limits_warning_operation() -> None:
     now = datetime.now(UTC)
     for target, expected in (
         (500, "battery SoC is unavailable"),
@@ -84,7 +84,20 @@ def test_safety_rejects_actions_without_soc_or_with_unsupported_state() -> None:
             ControlIntent("rule", target, 0, now), energy, SafetyConfig(), enabled=True, at=now
         )
         assert not valid and reason == expected
-    energy = _online_energy(now, operating_state="Warning")
+    energy = _online_energy(now, operating_state="Warning", event_code=7613)
+    valid, reason = validate_intent(
+        ControlIntent("rule", 500, 0, now), energy, SafetyConfig(), enabled=True, at=now
+    )
+    assert valid and reason is None
+    valid, reason = validate_intent(
+        ControlIntent("rule", -500, 0, now), energy, SafetyConfig(), enabled=True, at=now
+    )
+    assert not valid and reason == "battery operating state is not allowed"
+
+
+def test_safety_rejects_unknown_warning_even_for_charge() -> None:
+    now = datetime.now(UTC)
+    energy = _online_energy(now, operating_state="Warning", event_code=1234)
     valid, reason = validate_intent(
         ControlIntent("rule", 500, 0, now), energy, SafetyConfig(), enabled=True, at=now
     )

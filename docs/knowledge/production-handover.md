@@ -96,6 +96,13 @@ isolation is the device's LS circuit breaker and RCD. These provide a coarse
 operator isolation procedure, not a supervised inverter stop or proof that the
 installation is safe to switch under load.
 
+The currently observed warning is event `7613`, “communication with meter
+faulty”. This is a meter-communication warning rather than a battery protection
+event. PowerManager exposes the current SMA event code and permits only bounded
+charging for this explicitly known event when the remaining telemetry checks
+pass; it continues to block discharge and any grid-dependent rule without fresh
+grid telemetry. Unknown warning and error events remain blocked.
+
 ## Required execution order
 
 Complete each acceptance gate before advancing to its dependent stage.

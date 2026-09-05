@@ -39,6 +39,7 @@ class BatteryState:
     battery_power_w: float | None = None
     battery_voltage_v: float | None = None
     battery_current_a: float | None = None
+    event_code: int | None = None
     charge_limit_w: float | None = None
     discharge_limit_soc_percent: float | None = None
     operating_state: str | None = None

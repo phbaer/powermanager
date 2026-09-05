@@ -79,6 +79,11 @@ and never rewritten by PowerManager. A restart or unload cannot resume a prior
 session. Scheduled rules are a separate opt-in and must follow supervised manual
 testing. No live command has been sent from this repository deployment.
 
+Sunny Island event `7613` (“communication with meter faulty”) is treated as a
+charge-only warning: a bounded charge request may proceed when all other safety
+inputs are fresh, while discharge remains blocked and grid-dependent rules still
+require valid grid telemetry. Other warning or error events remain blocked.
+
 The disconnected command-session adapter keeps a bounded, sanitized event buffer
 for future diagnostics and verifies baseline restoration after each bounded test
 session. Home Assistant setup removes that passive monitor state if platform

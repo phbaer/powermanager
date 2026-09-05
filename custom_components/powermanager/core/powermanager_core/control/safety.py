@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass
 from datetime import datetime
 
-from ..models import CommunicationState, EnergyState
+from ..models import BatteryState, CommunicationState, EnergyState
 from .policy import ControlIntent
 
 
@@ -21,6 +21,7 @@ class SafetyConfig:
     max_energy_age_seconds: int = 120
     max_future_skew_seconds: int = 5
     allowed_operating_states: frozenset[str] = frozenset({"Ok", "OK"})
+    charge_warning_event_codes: frozenset[int] = frozenset({7613})
 
 
 def validate_intent(
@@ -63,7 +64,7 @@ def validate_intent(
             if freshness_error is not None:
                 return False, freshness_error
     battery = energy.battery
-    if battery.operating_state not in config.allowed_operating_states:
+    if not _operating_state_allows_intent(intent.target_power_w, battery, config):
         return False, "battery operating state is not allowed"
     soc = battery.battery_soc_percent
     if soc is not None and (not math.isfinite(soc) or not 0 <= soc <= 100):
@@ -117,7 +118,22 @@ def _validate_config(config: SafetyConfig) -> str | None:
         return "safety freshness limits cannot be negative"
     if not config.allowed_operating_states:
         return "allowed operating states cannot be empty"
+    if any(not isinstance(code, int) or code < 0 for code in config.charge_warning_event_codes):
+        return "charge warning event codes are invalid"
     return None
+
+
+def _operating_state_allows_intent(
+    target_power_w: float, battery: BatteryState, config: SafetyConfig
+) -> bool:
+    """Allow charging through the documented meter warning, never discharge."""
+    if battery.operating_state in config.allowed_operating_states:
+        return True
+    return (
+        target_power_w > 0
+        and battery.operating_state == "Warning"
+        and battery.event_code in config.charge_warning_event_codes
+    )
 
 
 def _validate_timestamp(

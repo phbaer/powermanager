@@ -37,6 +37,10 @@ STATUS = RegisterDefinition(
     "status", 30201, RegisterTable.INPUT, RegisterDataType.U32,
     invalid_values=frozenset({0xFFFFFFFF}),
 )
+CURRENT_EVENT = RegisterDefinition(
+    "current_event", 30197, RegisterTable.INPUT, RegisterDataType.U32,
+    invalid_values=frozenset({0xFFFFFFFF}),
+)
 BATTERY_SOC = RegisterDefinition(
     "battery_soc", 30845, RegisterTable.INPUT, RegisterDataType.U32,
     invalid_values=frozenset({0xFFFFFFFF}),
@@ -152,6 +156,7 @@ class SunnyIslandClient(BatteryBackend):
         values: dict[str, float | int | None] = {}
         for register in (
             STATUS,
+            CURRENT_EVENT,
             BATTERY_SOC,
             BATTERY_POWER,
             BATTERY_CURRENT,
@@ -166,6 +171,11 @@ class SunnyIslandClient(BatteryBackend):
             battery_power_w=_as_float(values["battery_power"]),
             battery_voltage_v=_as_float(values["battery_voltage"]),
             battery_current_a=_as_float(values["battery_current"]),
+            event_code=(
+                int(values["current_event"])
+                if values["current_event"] is not None
+                else None
+            ),
             discharge_limit_soc_percent=_as_float(values["discharge_soc_limit"]),
             operating_state=(
                 None
