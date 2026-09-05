@@ -28,6 +28,7 @@ CONF_PREDICTIVE_EXPORT_CAPACITY_KWH = "predictive_export_capacity_kwh"
 CONF_PREDICTIVE_MAX_CHARGE_POWER_W = "predictive_max_charge_power_w"
 CONF_PREDICTIVE_GRID_CHARGE_ALLOWED = "predictive_grid_charge_allowed"
 CONF_INVERTERS = "inverters_yaml"
+CONF_INVERTER_PROFILE_COUNT = "inverter_profile_count"
 
 DEFAULT_PORT = 502
 DEFAULT_UNIT_ID = 3

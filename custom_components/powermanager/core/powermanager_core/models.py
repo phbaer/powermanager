@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
+from .inverters import InverterRole
+
 
 class CommunicationState(StrEnum):
     """Availability of a backend's most recent update."""
@@ -87,22 +89,15 @@ class ForecastState:
 
 @dataclass(frozen=True, slots=True)
 class InverterState:
-    """Normalized telemetry for one PV or hybrid inverter source."""
+    """Normalized telemetry for one PV, battery, or hybrid inverter source."""
 
     source_id: str
+    role: InverterRole
     timestamp: datetime
-    import_power_w: float | None = None
-    export_power_w: float | None = None
-    pv_power_w: float | None = None
-    forecast: ForecastState | None = None
+    generation_power_w: float | None = None
+    battery_power_w: float | None = None
+    remaining_pv_forecast_kwh: float | None = None
     communication_state: CommunicationState = CommunicationState.UNKNOWN
-
-    @property
-    def net_power_w(self) -> float | None:
-        """Return import minus export when both directional values are present."""
-        if self.import_power_w is None or self.export_power_w is None:
-            return None
-        return self.import_power_w - self.export_power_w
 
 
 @dataclass(frozen=True, slots=True)

@@ -13,6 +13,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.powermanager import PLATFORMS, async_setup_entry, async_unload_entry
 from custom_components.powermanager.config_flow import PowerManagerOptionsFlow
 from custom_components.powermanager.const import DOMAIN
+from custom_components.powermanager.core.powermanager_core.inverters import parse_inverter_sources
 from custom_components.powermanager.core.powermanager_core.models import (
     BatteryState,
     CommunicationState,
@@ -90,7 +91,7 @@ async def test_options_flow_rejects_invalid_inverter_sources() -> None:
         {
             "scan_interval": 30,
             "telemetry_max_age": 120,
-            "inverters_yaml": "inverters: [{id: Invalid, pv_power_entity: sensor.pv}]",
+            "inverters_yaml": "inverters: [{id: Invalid, generation_power_entity: sensor.pv}]",
         }
     )
     with patch.object(flow, "async_show_form", return_value={"errors": {}}) as show_form:
@@ -98,6 +99,35 @@ async def test_options_flow_rejects_invalid_inverter_sources() -> None:
 
     assert response == {"errors": {}}
     assert show_form.call_args.kwargs["errors"] == {"base": "invalid_inverters"}
+
+
+async def test_options_flow_entity_picker_profiles_build_role_aware_yaml() -> None:
+    """Native entity selectors persist the same validated advanced YAML format."""
+    flow = PowerManagerOptionsFlow(Mock(options={}))
+    result = await flow.async_step_init()
+    data = result["data_schema"](
+        {
+            "scan_interval": 30,
+            "telemetry_max_age": 120,
+            "inverter_profile_count": 1,
+        }
+    )
+    with patch.object(flow, "async_show_form", return_value=None):
+        response = await flow.async_step_init(data)
+    assert response is None
+
+    profile_result = await flow.async_step_inverter(
+        {
+            "id": "sunnyboy",
+            "role": "pv",
+            "generation_power_entity": "sensor.sunnyboy_power",
+            "remaining_pv_forecast_entity": "sensor.sunnyboy_forecast",
+        }
+    )
+    assert profile_result["type"] is FlowResultType.CREATE_ENTRY
+    sources = parse_inverter_sources(profile_result["data"]["inverters_yaml"])
+    assert sources[0].generation_power_entity == "sensor.sunnyboy_power"
+    assert sources[0].remaining_pv_forecast_entity == "sensor.sunnyboy_forecast"
 
 
 async def test_setup_failure_stops_monitor_and_removes_coordinator(hass) -> None:

@@ -26,6 +26,10 @@ from custom_components.powermanager.core.powermanager_core.exceptions import (
     BackendConnectionError,
     UnsupportedDeviceError,
 )
+from custom_components.powermanager.core.powermanager_core.inverters import (
+    InverterRole,
+    InverterSourceConfig,
+)
 from custom_components.powermanager.core.powermanager_core.models import (
     BatteryState,
     CommunicationState,
@@ -307,36 +311,37 @@ async def test_coordinator_exposes_predictive_shadow_plan_without_writes(coordin
 
 
 async def test_coordinator_aggregates_configured_inverter_telemetry(coordinator):
-    """Per-inverter directional power and forecasts feed aggregate simulation inputs."""
+    """Per-inverter generation and PV forecasts feed aggregate inputs."""
     now = datetime.now(UTC)
-    forecast = ForecastState(
-        timestamp=now,
-        remaining_pv_kwh=4,
-        expected_remaining_load_kwh=2,
-        communication_state=CommunicationState.ONLINE,
+    coordinator._inverter_sources = (
+        InverterSourceConfig(
+            "main_pv",
+            InverterRole.PV,
+            generation_power_entity="sensor.main_power",
+            remaining_pv_forecast_entity="sensor.main_forecast",
+        ),
+        InverterSourceConfig(
+            "garage_pv",
+            InverterRole.PV,
+            generation_power_entity="sensor.garage_power",
+            remaining_pv_forecast_entity="sensor.garage_forecast",
+        ),
     )
     inverter_states = (
         InverterState(
             "main_pv",
+            InverterRole.PV,
             now,
-            import_power_w=100,
-            export_power_w=20,
-            pv_power_w=1500,
-            forecast=forecast,
+            generation_power_w=1500,
+            remaining_pv_forecast_kwh=4,
             communication_state=CommunicationState.ONLINE,
         ),
         InverterState(
             "garage_pv",
+            InverterRole.PV,
             now,
-            import_power_w=50,
-            export_power_w=10,
-            pv_power_w=500,
-            forecast=ForecastState(
-                timestamp=now,
-                remaining_pv_kwh=3,
-                expected_remaining_load_kwh=1,
-                communication_state=CommunicationState.ONLINE,
-            ),
+            generation_power_w=500,
+            remaining_pv_forecast_kwh=3,
             communication_state=CommunicationState.ONLINE,
         ),
     )
@@ -354,11 +359,11 @@ async def test_coordinator_aggregates_configured_inverter_telemetry(coordinator)
 
     assert data.inverters == inverter_states
     assert data.energy_state.grid is not None
-    assert data.energy_state.grid.grid_power_w == 120
+    assert data.energy_state.grid.grid_power_w is None
     assert data.energy_state.grid.pv_power_w == 2000
     assert data.energy_state.forecast is not None
     assert data.energy_state.forecast.remaining_pv_kwh == 7
-    assert data.energy_state.forecast.expected_remaining_load_kwh == 3
+    assert data.energy_state.forecast.expected_remaining_load_kwh is None
 
 
 async def test_active_control_status_is_explicitly_monitor_only(coordinator):

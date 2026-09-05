@@ -32,12 +32,14 @@ never supplied to a control policy. Market-price entities must state an explicit
 `/kWh` or `/MWh` unit; `/MWh` prices are normalized to `/kWh` and ambiguous
 unitless values are rejected.
 
-The Home Assistant layer also accepts an optional `inverters_yaml` source list.
-Each source maps existing HA entities to normalized import/export power, PV power,
-and remaining-energy forecast values. Complete per-inverter values can provide the
-aggregate simulation input when no site-level source is configured. This adapter
-is read-only; direct Speedwire identity and role decoding remains a separate
-fixture-backed task.
+The Home Assistant layer also accepts an optional `inverters_yaml` source list,
+or the options flow can build the same list with native entity selectors. Each
+source declares a `pv`, `battery`, or `hybrid` role. PV sources provide one
+generation-power entity and may provide a remaining-PV forecast; battery-capable
+sources may provide one signed battery-power entity. Grid import/export and the
+household load forecast stay site-level inputs. PV forecasts are aggregated only
+when every configured PV forecast is fresh. This adapter is read-only; direct
+Speedwire identity and role decoding remains a separate fixture-backed task.
 
 The core safety validator also checks direct model inputs: source communication
 state, per-source freshness, timestamps in the future, finite targets, battery

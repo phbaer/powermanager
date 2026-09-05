@@ -337,8 +337,9 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         inverter_states = await self._inverter_provider.read_states()
         if grid_state is None:
             grid_state = _aggregate_inverter_grid(inverter_states)
-        if forecast_state is None:
-            forecast_state = _aggregate_inverter_forecast(inverter_states)
+        forecast_state = _merge_forecasts(
+            forecast_state, _aggregate_inverter_forecast(self._inverter_sources, inverter_states)
+        )
         energy_state = EnergyState(
             timestamp=battery_state.timestamp,
             battery=battery_state,
@@ -440,27 +441,22 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
 
 
 def _aggregate_inverter_grid(states: tuple[InverterState, ...]) -> GridState | None:
-    """Aggregate complete directional readings when no site grid entity exists."""
-    directional = [
-        state
+    """Aggregate generation values when no site grid entity exists.
+
+    Grid import/export cannot be inferred from inverter generation. It remains
+    a site-meter input, while PV output is safe to sum across inverter sources.
+    """
+    pv_values = [
+        state.generation_power_w
         for state in states
-        if state.import_power_w is not None or state.export_power_w is not None
+        if state.generation_power_w is not None
     ]
-    if directional and any(
-        state.import_power_w is None or state.export_power_w is None for state in directional
-    ):
-        directional = []
-    pv_values = [state.pv_power_w for state in states if state.pv_power_w is not None]
-    if not directional and not pv_values:
+    if not pv_values:
         return None
     timestamps = [state.timestamp for state in states]
     return GridState(
         timestamp=max(timestamps),
-        grid_power_w=(
-            sum(state.import_power_w - state.export_power_w for state in directional)
-            if directional
-            else None
-        ),
+        grid_power_w=None,
         pv_power_w=sum(pv_values) if pv_values else None,
         communication_state=(
             CommunicationState.ONLINE
@@ -470,29 +466,49 @@ def _aggregate_inverter_grid(states: tuple[InverterState, ...]) -> GridState | N
     )
 
 
-def _aggregate_inverter_forecast(states: tuple[InverterState, ...]) -> ForecastState | None:
-    """Aggregate forecasts only when every configured forecast is complete and fresh."""
-    forecasts = [state.forecast for state in states]
-    if not forecasts or any(forecast is None for forecast in forecasts):
+def _aggregate_inverter_forecast(
+    sources: tuple[InverterSourceConfig, ...], states: tuple[InverterState, ...]
+) -> ForecastState | None:
+    """Aggregate PV forecasts only when every configured source is fresh."""
+    source_by_id = {source.source_id: source for source in sources}
+    forecast_states = [
+        state
+        for state in states
+        if source_by_id.get(state.source_id)
+        and source_by_id[state.source_id].forecasts_pv
+        and source_by_id[state.source_id].remaining_pv_forecast_entity
+    ]
+    configured = [
+        source
+        for source in sources
+        if source.forecasts_pv and source.remaining_pv_forecast_entity
+    ]
+    if not configured or len(forecast_states) != len(configured):
         return None
     if any(
-        forecast.communication_state is not CommunicationState.ONLINE
-        or forecast.remaining_pv_kwh is None
-        or forecast.expected_remaining_load_kwh is None
-        for forecast in forecasts
-        if forecast is not None
+        state.communication_state is not CommunicationState.ONLINE
+        or state.remaining_pv_forecast_kwh is None
+        for state in forecast_states
     ):
         return None
     return ForecastState(
-        timestamp=max(forecast.timestamp for forecast in forecasts if forecast is not None),
+        timestamp=max(state.timestamp for state in forecast_states),
         remaining_pv_kwh=sum(
-            forecast.remaining_pv_kwh for forecast in forecasts if forecast is not None
-        ),
-        expected_remaining_load_kwh=sum(
-            forecast.expected_remaining_load_kwh for forecast in forecasts if forecast is not None
+            state.remaining_pv_forecast_kwh for state in forecast_states
         ),
         communication_state=CommunicationState.ONLINE,
     )
+
+
+def _merge_forecasts(
+    site_forecast: ForecastState | None, inverter_forecast: ForecastState | None
+) -> ForecastState | None:
+    """Combine site-wide load with aggregate inverter PV forecast."""
+    if site_forecast is None:
+        return inverter_forecast
+    if inverter_forecast is None or site_forecast.remaining_pv_kwh is not None:
+        return site_forecast
+    return replace(site_forecast, remaining_pv_kwh=inverter_forecast.remaining_pv_kwh)
 
 
 def _ha_timezone(hass: HomeAssistant):

@@ -251,14 +251,10 @@ async def async_setup_entry(
     ]
     for source in coordinator.inverter_sources:
         configured = {
-            "import_power": source.import_power_entity,
-            "export_power": source.export_power_entity,
-            "pv_power": source.pv_power_entity,
+            "generation_power": source.generation_power_entity,
+            "battery_power": source.battery_power_entity,
             "remaining_pv_forecast": source.remaining_pv_forecast_entity,
-            "expected_remaining_load_forecast": source.expected_remaining_load_forecast_entity,
         }
-        if source.import_power_entity or source.export_power_entity:
-            configured["net_power"] = True
         for metric, source_entity in configured.items():
             if source_entity:
                 entities.append(
@@ -316,12 +312,9 @@ class InverterTelemetrySensor(CoordinatorEntity[PowerManagerCoordinator], Sensor
 
     _attr_has_entity_name = False
     _METADATA = {
-        "import_power": ("import power", "W", SensorDeviceClass.POWER),
-        "export_power": ("export power", "W", SensorDeviceClass.POWER),
-        "net_power": ("net power", "W", SensorDeviceClass.POWER),
-        "pv_power": ("PV power", "W", SensorDeviceClass.POWER),
+        "generation_power": ("generation power", "W", SensorDeviceClass.POWER),
+        "battery_power": ("battery power", "W", SensorDeviceClass.POWER),
         "remaining_pv_forecast": ("remaining PV forecast", "kWh", None),
-        "expected_remaining_load_forecast": ("expected remaining load forecast", "kWh", None),
     }
 
     def __init__(
@@ -355,13 +348,24 @@ class InverterTelemetrySensor(CoordinatorEntity[PowerManagerCoordinator], Sensor
         )
         return _inverter_metric_value(state, self._metric) if state else None
 
+    @property
+    def extra_state_attributes(self) -> dict[str, str] | None:
+        """Expose the source role and freshness alongside each metric."""
+        state = next(
+            (item for item in self.coordinator.data.inverters if item.source_id == self._source_id),
+            None,
+        )
+        if state is None:
+            return None
+        return {
+            "source_id": state.source_id,
+            "role": state.role,
+            "communication_state": state.communication_state,
+        }
+
 
 def _inverter_metric_value(state: InverterState, metric: str) -> float | None:
     """Select a normalized metric from one inverter state."""
     if metric == "remaining_pv_forecast":
-        return state.forecast.remaining_pv_kwh if state.forecast else None
-    if metric == "expected_remaining_load_forecast":
-        return state.forecast.expected_remaining_load_kwh if state.forecast else None
-    if metric == "net_power":
-        return state.net_power_w
+        return state.remaining_pv_forecast_kwh
     return getattr(state, f"{metric}_w")

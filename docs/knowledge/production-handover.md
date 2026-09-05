@@ -132,9 +132,13 @@ restart without relying on packages installed by the development environment.
 - [ ] Validate multicast reception/recovery on the deployment network; document
   interface/relay limitations and identify the Home Manager generation if required.
 - [x] Add optional HA entity-backed multi-inverter ingestion. Each configured
-  source has normalized import/export, PV, and remaining-energy forecast values;
-  complete source readings aggregate into simulation inputs when site-level
-  entities are absent, and configured values are exposed as read-only HA sensors.
+  source declares a PV, battery, or hybrid role. PV generation and optional
+  remaining-PV forecasts are normalized per source; signed battery power is
+  available only for battery-capable roles. Grid import/export and household
+  load forecasts remain site-level inputs, and fresh PV forecasts are aggregated
+  only when every configured PV source is available. The options flow provides
+  native entity selectors, while advanced YAML remains supported; all values are
+  exposed read-only and do not create an inverter write path.
 - [ ] Build a fixture-backed Speedwire source inventory and role decoder. Expose
   verified SMA and non-SMA telemetry through normalized HA sensors where a
   protocol adapter exists; retain address, identity confidence, capability, and

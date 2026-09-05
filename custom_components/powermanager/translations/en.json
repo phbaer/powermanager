@@ -39,6 +39,7 @@
           "remaining_load_forecast_entity": "Expected remaining load energy entity",
           "rules_yaml": "Simulation rules (YAML)",
           "inverters_yaml": "Per-inverter telemetry sources (YAML)",
+          "inverter_profile_count": "Number of inverter sources to configure with entity pickers",
           "predictive_capacity_kwh": "Predictive usable capacity (kWh)",
           "predictive_end_soc_percent": "Predictive end-of-day SoC (%)",
           "predictive_reserve_soc_percent": "Predictive reserve SoC (%)",
@@ -62,13 +63,32 @@
           "remaining_pv_forecast_entity": "One or more remaining-energy forecasts for separate PV arrays or inverters, in Wh, kWh, or MWh. Values are combined only when every selected forecast is fresh (up to two hours old). Use remaining forecasts, not lifetime energy meters.",
           "remaining_load_forecast_entity": "Forecast energy still expected to be consumed during the planning period, in Wh, kWh, or MWh. Use a remaining forecast, not a cumulative meter.",
           "rules_yaml": "Versioned YAML rules evaluated only for simulation. Rule execution and battery writes remain disabled.",
-          "inverters_yaml": "Optional YAML list of inverter IDs and HA entities for import, export, PV power, and remaining-energy forecasts. These sources are read-only and do not enable control.",
+          "inverters_yaml": "Advanced YAML list of role-specific inverter entities. Use the entity-picker flow above for sensor ID completion. Sources are read-only and do not enable control.",
+          "inverter_profile_count": "Set a number to configure inverter sources with native Home Assistant entity pickers. Leave at zero to use the advanced YAML field.",
           "predictive_capacity_kwh": "Usable battery capacity assumed by the shadow planner.",
           "predictive_end_soc_percent": "Target SoC at the next local midnight; this is a simulation target only.",
           "predictive_reserve_soc_percent": "Minimum SoC reserve used by the shadow planner.",
           "predictive_export_capacity_kwh": "Forecast energy that can be exported before the planner preserves additional headroom.",
           "predictive_max_charge_power_w": "Upper bound for a future recommendation; no command is sent.",
           "predictive_grid_charge_allowed": "Allow the shadow planner to recommend grid charging when forecast energy cannot meet the target."
+        }
+      },
+      "inverter": {
+        "title": "Inverter source {index}",
+        "description": "Select the Home Assistant entities for this inverter. PV generation and household load are separate concepts; configure the load forecast once on the previous page.",
+        "data": {
+          "id": "Stable source ID",
+          "role": "Inverter role",
+          "generation_power_entity": "Generation power entity",
+          "battery_power_entity": "Signed battery power entity",
+          "remaining_pv_forecast_entity": "Remaining PV forecast entity"
+        },
+        "data_description": {
+          "id": "Lowercase letters, digits, underscores, and hyphens only.",
+          "role": "PV is generation-only, battery is storage-only, and hybrid can provide both.",
+          "generation_power_entity": "Instantaneous AC generation in W or kW. Required for PV sources.",
+          "battery_power_entity": "Signed battery flow in W or kW, with the entity's documented charge/discharge convention.",
+          "remaining_pv_forecast_entity": "Remaining PV energy in Wh, kWh, or MWh. This is aggregated across PV sources; household load is configured once."
         }
       }
     },
@@ -81,6 +101,8 @@
       "load_forecast_requires_load_power": "Historical load estimation requires a whole-home load power entity.",
       "invalid_rules": "Rules must be valid simulation-only YAML with version: 1 and enabled: false.",
       "invalid_inverters": "Inverter sources must be a valid YAML list with unique lowercase IDs and at least one entity per inverter.",
+      "inverter_source_conflict": "Use either the inverter entity-picker flow or the advanced inverter YAML field, not both.",
+      "invalid_inverter_profile": "The inverter profile is incomplete or inconsistent with its selected role.",
       "invalid_predictive_targets": "The predictive reserve SoC cannot exceed the end-of-day target."
     }
   },

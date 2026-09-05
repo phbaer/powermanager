@@ -18,6 +18,8 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectSelector,
+    SelectSelectorConfig,
     TextSelector,
     TextSelectorConfig,
 )
@@ -29,6 +31,7 @@ from .const import (
     CONF_GRID_IMPORT_POWER_ENTITY,
     CONF_GRID_POWER_ENTITY,
     CONF_HOST,
+    CONF_INVERTER_PROFILE_COUNT,
     CONF_INVERTERS,
     CONF_LOAD_FORECAST_HISTORY_DAYS,
     CONF_LOAD_POWER_ENTITY,
@@ -134,6 +137,9 @@ class PowerManagerOptionsFlow(OptionsFlow):
 
     def __init__(self, config_entry: Any) -> None:
         self._config_entry = config_entry
+        self._pending_options: dict[str, Any] | None = None
+        self._inverter_profile_count = 0
+        self._inverter_profiles: list[dict[str, Any]] = []
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Update the coordinator polling interval."""
@@ -157,6 +163,7 @@ class PowerManagerOptionsFlow(OptionsFlow):
             )
             rules_yaml = user_input.get(CONF_RULES_YAML)
             inverters_yaml = user_input.get(CONF_INVERTERS)
+            profile_count = int(user_input.get(CONF_INVERTER_PROFILE_COUNT, 0) or 0)
             if static_price == "":
                 user_input.pop(CONF_STATIC_PRICE_PER_KWH, None)
                 static_price = None
@@ -175,6 +182,8 @@ class PowerManagerOptionsFlow(OptionsFlow):
                     parse_rules_document(yaml.safe_load(rules_yaml))
                 except (TypeError, ValueError, yaml.YAMLError):
                     errors["base"] = "invalid_rules"
+            if not errors and inverters_yaml and profile_count:
+                errors["base"] = "inverter_source_conflict"
             if not errors and inverters_yaml:
                 try:
                     parse_inverter_sources(inverters_yaml)
@@ -192,7 +201,14 @@ class PowerManagerOptionsFlow(OptionsFlow):
                         errors["base"] = "invalid_static_price"
             if not errors and float(predictive_reserve) > float(predictive_end):
                 errors["base"] = "invalid_predictive_targets"
+            if not errors and profile_count:
+                self._pending_options = dict(user_input)
+                self._pending_options.pop(CONF_INVERTER_PROFILE_COUNT, None)
+                self._inverter_profile_count = profile_count
+                self._inverter_profiles = []
+                return await self.async_step_inverter()
             if not errors:
+                user_input.pop(CONF_INVERTER_PROFILE_COUNT, None)
                 return self.async_create_entry(title="", data=user_input)
 
         current_interval = self._config_entry.options.get(
@@ -252,6 +268,7 @@ class PowerManagerOptionsFlow(OptionsFlow):
                     CONF_INVERTERS,
                     default=self._config_entry.options.get(CONF_INVERTERS, ""),
                 ): _INVERTERS_SELECTOR,
+                vol.Optional(CONF_INVERTER_PROFILE_COUNT, default=0): _INVERTER_COUNT_SELECTOR,
                 vol.Optional(
                     CONF_PREDICTIVE_CAPACITY_KWH,
                     default=self._option_number_or(
@@ -305,6 +322,51 @@ class PowerManagerOptionsFlow(OptionsFlow):
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+
+    async def async_step_inverter(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Collect one inverter profile with native HA entity selectors."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            profile = {
+                key: value
+                for key, value in user_input.items()
+                if value not in (None, "")
+            }
+            profile["id"] = profile.get("id", "").lower()
+            try:
+                document = yaml.safe_dump(
+                    {"inverters": [*self._inverter_profiles, profile]}, sort_keys=False
+                )
+                parse_inverter_sources(document)
+            except (TypeError, ValueError, yaml.YAMLError):
+                errors["base"] = "invalid_inverter_profile"
+            else:
+                self._inverter_profiles.append(profile)
+                if len(self._inverter_profiles) >= self._inverter_profile_count:
+                    assert self._pending_options is not None
+                    self._pending_options[CONF_INVERTERS] = yaml.safe_dump(
+                        {"inverters": self._inverter_profiles}, sort_keys=False
+                    )
+                    return self.async_create_entry(title="", data=self._pending_options)
+
+        index = len(self._inverter_profiles) + 1
+        schema = vol.Schema(
+            {
+                vol.Required("id"): vol.All(str, vol.Length(min=1, max=64)),
+                vol.Required("role", default="pv"): _INVERTER_ROLE_SELECTOR,
+                vol.Optional("generation_power_entity"): _POWER_ENTITY_SELECTOR,
+                vol.Optional("battery_power_entity"): _POWER_ENTITY_SELECTOR,
+                vol.Optional("remaining_pv_forecast_entity"): _ENERGY_ENTITY_SELECTOR,
+            }
+        )
+        return self.async_show_form(
+            step_id="inverter",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={"index": index},
+        )
 
     def _option(self, key: str) -> str | None:
         """Return an optional selector default without presenting an empty value."""
@@ -361,6 +423,18 @@ _LOAD_FORECAST_DAYS_SELECTOR = NumberSelector(
 )
 _RULES_SELECTOR = TextSelector(TextSelectorConfig(multiline=True))
 _INVERTERS_SELECTOR = TextSelector(TextSelectorConfig(multiline=True))
+_INVERTER_ROLE_SELECTOR = SelectSelector(
+    SelectSelectorConfig(
+        options=[
+            {"value": "pv", "label": "PV inverter"},
+            {"value": "battery", "label": "Battery inverter"},
+            {"value": "hybrid", "label": "Hybrid inverter"},
+        ]
+    )
+)
+_INVERTER_COUNT_SELECTOR = NumberSelector(
+    NumberSelectorConfig(min=0, max=16, step=1, mode=NumberSelectorMode.BOX)
+)
 _PREDICTIVE_CAPACITY_SELECTOR = NumberSelector(
     NumberSelectorConfig(min=0.1, max=1000, step=0.1, mode=NumberSelectorMode.BOX)
 )
