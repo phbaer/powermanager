@@ -9,6 +9,7 @@ entries:
   - roadmap.md
   - control-plan.md
   - control-write-research.md
+  - commissioning-record-template.md
   - production-handover.md
 ---
 
@@ -26,3 +27,4 @@ telemetry providers are optional.
 - [Production handover](production-handover.md) - Ordered tasks and acceptance gates.
 - [Control plan](control-plan.md) - Control infrastructure and declarative rules.
 - [Control/write research](control-write-research.md) - Verified SMA register and fail-safe constraints.
+- [Commissioning record template](commissioning-record-template.md) - Ordered evidence and rollback record for supervised tests.

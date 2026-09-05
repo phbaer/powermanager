@@ -174,6 +174,10 @@ failure reporting. Production entry points remain disabled.
 
 ### 6. Complete supervised physical commissioning
 
+Use the [commissioning record template](commissioning-record-template.md) for
+the required approvals, read-only snapshot, rollback procedure, and observed
+failure tests.
+
 - [ ] Confirm supported single-cluster topology, firmware, active-power owner,
   and physical emergency-stop/rollback procedure with the operator.
 - [ ] Verify sign, scaling, limits, persistence, activation, and fallback against
