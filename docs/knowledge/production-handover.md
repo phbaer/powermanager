@@ -80,6 +80,8 @@ restart without relying on packages installed by the development environment.
 - [x] Coordinator read failures trigger backoff and a subsequent successful poll
   recovers through the same read-only path; full HA connection/entity lifecycle
   coverage remains open.
+- [x] Options-flow validation checks independent telemetry, tariff, and rule
+  sources together, including conflicts when valid YAML rules are supplied.
 - [ ] Extend observation tests to timed silence, DNS failure/recovery, and sustained
   traffic alongside scheduled Modbus updates.
 - [ ] Validate multicast reception/recovery on the deployment network; document
@@ -145,13 +147,16 @@ and no transport writes.
   HA control surface, and revoked control permission must not block recovery.
 - [x] Separate transport timeouts from normal session expiry and enforce a
   configurable maximum session duration. Transport heartbeat timeouts now fail
-  the session rather than being treated as normal expiry.
+  the session rather than being treated as normal expiry; duration uses the
+  event loop's monotonic clock.
 - [x] Capture approved baseline operating settings and verify restoration. The
   session restores communication/mode values and reads them back; the dedicated
   restore-normal path remains available for recovery.
 - [x] Test partial restoration writes, failed restoration reporting, cancellation,
   overlapping sessions, and disconnected transport with fake transport. Clock
-  changes and process restart policy still need dedicated coverage.
+  changes are isolated by the monotonic deadline. Process restart policy is
+  explicit: sessions are in-memory and never resume automatically; a fresh
+  process remains monitor-only until separately authorized recovery.
 - [x] Separate raw write capability from the read-only transport. The Modbus
   client now exposes writes only through `PymodbusTcpWriteTransport`; the
   Sunny Island monitor retains the read-only transport.

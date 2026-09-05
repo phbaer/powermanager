@@ -150,14 +150,14 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 errors["base"] = "load_forecast_source_conflict"
             elif estimate_remaining_load and not load_power_entity:
                 errors["base"] = "load_forecast_requires_load_power"
-            elif rules_yaml:
+            if not errors and rules_yaml:
                 try:
                     parse_rules_document(yaml.safe_load(rules_yaml))
                 except (TypeError, ValueError, yaml.YAMLError):
                     errors["base"] = "invalid_rules"
-            elif price_entity and static_price is not None:
+            if not errors and price_entity and static_price is not None:
                 errors["base"] = "price_source_conflict"
-            elif static_price is not None:
+            elif not errors and static_price is not None:
                 try:
                     user_input[CONF_STATIC_PRICE_PER_KWH] = float(static_price)
                 except (TypeError, ValueError):
