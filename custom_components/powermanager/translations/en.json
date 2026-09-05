@@ -89,6 +89,7 @@
     },
     "sensor": {
       "device_type": {"name": "Device type"},
+      "firmware_version": {"name": "Firmware version"},
       "communication_state": {"name": "Communication state"},
       "operating_state": {"name": "Operating state"},
       "battery_soc": {"name": "Battery state of charge"},

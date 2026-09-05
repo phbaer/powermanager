@@ -93,6 +93,8 @@ restart without relying on packages installed by the development environment.
   `30057`, `30061`, and `30063`; decode SMA's packed firmware format. The device
   registry now carries a serial identifier alongside the legacy entry identifier;
   explicit migration and physical firmware support validation remain outstanding.
+- [x] Expose the decoded firmware identity as a read-only HA sensor; this does
+  not establish that the observed firmware is approved for active control.
 - [ ] Establish firmware support and unsupported/unavailable-state reporting.
 - [x] Require tests, Ruff, hassfest, and HACS validation before publishing. The
   HACS release job now depends on all three repository validation jobs; actual

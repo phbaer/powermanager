@@ -36,6 +36,11 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
         value_fn=lambda coordinator: coordinator.data.device_info.device_type,
     ),
     PowerManagerSensorDescription(
+        key="firmware_version",
+        translation_key="firmware_version",
+        value_fn=lambda coordinator: coordinator.data.device_info.firmware_version or "unknown",
+    ),
+    PowerManagerSensorDescription(
         key="communication_state",
         translation_key="communication_state",
         value_fn=lambda coordinator: coordinator.data.battery_state.communication_state,
