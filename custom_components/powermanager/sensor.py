@@ -256,18 +256,31 @@ async def async_setup_entry(
     entities: list[SensorEntity] = [
         PowerManagerSensor(coordinator, entry, description) for description in SENSORS
     ]
-    for source in coordinator.inverter_sources:
-        configured = {
-            "generation_power": source.generation_power_entity,
-            "battery_power": source.battery_power_entity,
-            "remaining_pv_forecast": source.remaining_pv_forecast_entity,
-        }
-        for metric, source_entity in configured.items():
-            if source_entity:
-                entities.append(
-                    InverterTelemetrySensor(coordinator, entry, source.source_id, metric)
-                )
     async_add_entities(entities)
+
+    added_sources: set[tuple[str, str]] = set()
+
+    def add_inverter_entities() -> None:
+        """Expose imported dashboard sources when their topology is first available."""
+        new_entities: list[SensorEntity] = []
+        for source in coordinator.inverter_sources:
+            configured = {
+                "generation_power": source.generation_power_entity,
+                "battery_power": source.battery_power_entity,
+                "remaining_pv_forecast": source.remaining_pv_forecast_entity,
+            }
+            for metric, source_entity in configured.items():
+                key = (source.source_id, metric)
+                if source_entity and key not in added_sources:
+                    added_sources.add(key)
+                    new_entities.append(
+                        InverterTelemetrySensor(coordinator, entry, source.source_id, metric)
+                    )
+        if new_entities:
+            async_add_entities(new_entities)
+
+    add_inverter_entities()
+    entry.async_on_unload(coordinator.async_add_listener(add_inverter_entities))
 
 
 class PowerManagerSensor(CoordinatorEntity[PowerManagerCoordinator], SensorEntity):
