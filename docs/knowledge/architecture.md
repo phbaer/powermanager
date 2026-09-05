@@ -28,9 +28,11 @@ network backends.
 
 ## Safety boundary
 
-Version 0.1 is monitor-only by default. A guarded Modbus write adapter exists for
-commissioning, but no Home Assistant path enables it. Any future write backend
-must be explicitly enabled, time-limited, ownership-checked, and fail-safe.
+Version 0.1 is monitor-only by default. A guarded Modbus write adapter and
+Home Assistant command path exist for supervised commissioning, but explicit
+enablement, time limits, ownership, fresh telemetry, and fail-safe checks keep
+them locked until the operator enables them. Any future write backend must
+preserve the same hardware safety boundary.
 
 ## Deployment modes
 
