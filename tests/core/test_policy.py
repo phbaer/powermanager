@@ -1,4 +1,5 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time
+from zoneinfo import ZoneInfo
 
 from powermanager_core.control import ControlRule, RuleConditions, evaluate_rules
 from powermanager_core.models import BatteryState, EnergyState, ForecastState, GridState, PriceState
@@ -68,3 +69,12 @@ def test_forecast_condition_requires_a_fresh_complete_forecast() -> None:
         timestamp=at, battery=state.battery, grid=state.grid, forecast=forecast
     )
     assert evaluate_rules(forecasted, (rule,), at=at) is not None
+
+
+def test_time_window_uses_explicit_local_timezone() -> None:
+    at = datetime(2026, 7, 1, 7, 30, tzinfo=UTC)
+    rule = ControlRule(
+        "local-window", 1, RuleConditions(between=(time(9), time(10))), 100
+    )
+    assert evaluate_rules(energy(-100), (rule,), at=at) is None
+    assert evaluate_rules(energy(-100), (rule,), at=at, timezone=ZoneInfo("Europe/Berlin"))

@@ -7,6 +7,7 @@ import logging
 import socket
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
 from homeassistant.config_entries import ConfigEntry
@@ -47,8 +48,9 @@ from .core.powermanager_core.backends.sma_sunny_island import (
     SunnyIslandClient,
     SunnyIslandConnectionConfig,
 )
-from .core.powermanager_core.control.policy import evaluate_rules
 from .core.powermanager_core.control.rules import parse_rules_document
+from .core.powermanager_core.control.runtime import ControlRuntime
+from .core.powermanager_core.control.watchdog import ControlWatchdog
 from .core.powermanager_core.exceptions import PowerManagerError
 from .core.powermanager_core.models import (
     BatteryState,
@@ -77,6 +79,10 @@ class PowerManagerData:
     simulated_target_power_w: float | None = None
     control_ownership_clear: bool = False
     speedwire_observation_state: CommunicationState = CommunicationState.UNKNOWN
+    simulated_accepted: bool | None = None
+    simulated_reason: str | None = None
+    simulated_restore_normal: bool = False
+    simulated_held: bool = False
 
 
 class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
@@ -130,6 +136,11 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         )
         rules_yaml = entry.options.get(CONF_RULES_YAML)
         self._rules = parse_rules_document(yaml.safe_load(rules_yaml)) if rules_yaml else ()
+        self._simulation_runtime = ControlRuntime(
+            self._rules,
+            watchdog=ControlWatchdog(timeout_seconds=max(30, self._poll_seconds * 3)),
+            timezone=_ha_timezone(hass),
+        )
 
     def start_speedwire_monitor(self) -> None:
         """Start passive multicast observation without affecting Modbus polling."""
@@ -241,13 +252,20 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             price=price_state,
             forecast=forecast_state,
         )
-        intent = evaluate_rules(energy_state, self._rules, at=battery_state.timestamp)
+        decision = await self._simulation_runtime.cycle(
+            energy_state, at=battery_state.timestamp, enabled=True
+        )
+        intent = decision.intent
         return self._with_observation(PowerManagerData(
             device_info=device_info,
             battery_state=battery_state,
             energy_state=energy_state,
             simulated_rule_id=intent.rule_id if intent else None,
             simulated_target_power_w=intent.target_power_w if intent else None,
+            simulated_accepted=decision.accepted,
+            simulated_reason=decision.reason,
+            simulated_restore_normal=decision.restore_normal,
+            simulated_held=decision.held,
         ))
 
     def _schedule_retry(self) -> None:
@@ -264,3 +282,12 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             severity=IssueSeverity.WARNING,
             translation_key=translation_key,
         )
+
+
+def _ha_timezone(hass: HomeAssistant):
+    """Resolve Home Assistant's configured timezone for rule windows."""
+    try:
+        return ZoneInfo(hass.config.time_zone)
+    except (ZoneInfoNotFoundError, AttributeError):
+        _LOGGER.warning("Unknown Home Assistant timezone; using timestamps as provided")
+        return None

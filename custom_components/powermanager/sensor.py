@@ -157,6 +157,22 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
         value_fn=lambda coordinator: coordinator.data.simulated_target_power_w,
     ),
     PowerManagerSensorDescription(
+        key="simulated_decision",
+        translation_key="simulated_decision",
+        value_fn=lambda coordinator: (
+            "accepted"
+            if coordinator.data.simulated_accepted
+            else "rejected"
+            if coordinator.data.simulated_accepted is False
+            else "unknown"
+        ),
+    ),
+    PowerManagerSensorDescription(
+        key="simulated_reason",
+        translation_key="simulated_reason",
+        value_fn=lambda coordinator: coordinator.data.simulated_reason or "none",
+    ),
+    PowerManagerSensorDescription(
         key="speedwire_source_count",
         translation_key="speedwire_source_count",
         value_fn=lambda coordinator: len(coordinator.data.speedwire_sources),

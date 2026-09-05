@@ -50,6 +50,7 @@ def test_runtime_holds_accepted_intent_until_hold_period_expires() -> None:
     )
     held = asyncio.run(runtime.cycle(no_surplus, at=at + timedelta(seconds=10), enabled=True))
     assert held.accepted
+    assert held.held
     assert held.intent is not None and held.intent.rule_id == "surplus"
 
 

@@ -90,6 +90,8 @@
       "expected_remaining_load": {"name": "Expected remaining load"}
       ,"simulated_rule": {"name": "Simulated matching rule"},
       "simulated_target_power": {"name": "Simulated target battery power"},
+      "simulated_decision": {"name": "Simulated decision"},
+      "simulated_reason": {"name": "Simulated decision reason"},
       "speedwire_source_count": {"name": "Observed SMA Speedwire sources"}
     }
   },

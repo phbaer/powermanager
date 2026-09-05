@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, time
+from datetime import datetime, time, tzinfo
 
 from ..models import EnergyState
 
@@ -46,7 +46,11 @@ class ControlIntent:
 
 
 def evaluate_rules(
-    energy: EnergyState, rules: tuple[ControlRule, ...], *, at: datetime
+    energy: EnergyState,
+    rules: tuple[ControlRule, ...],
+    *,
+    at: datetime,
+    timezone: tzinfo | None = None,
 ) -> ControlIntent | None:
     """Return the highest-priority eligible intent, or ``None``.
 
@@ -54,7 +58,7 @@ def evaluate_rules(
     are resolved by their original order, making evaluation deterministic.
     """
     for rule in sorted(enumerate(rules), key=lambda item: (-item[1].priority, item[0])):
-        if _matches(rule[1].conditions, energy, at):
+        if _matches(rule[1].conditions, energy, at, timezone=timezone):
             return ControlIntent(
                 rule[1].rule_id,
                 rule[1].target_power_w,
@@ -65,7 +69,13 @@ def evaluate_rules(
     return None
 
 
-def _matches(conditions: RuleConditions, energy: EnergyState, at: datetime) -> bool:
+def _matches(
+    conditions: RuleConditions,
+    energy: EnergyState,
+    at: datetime,
+    *,
+    timezone: tzinfo | None,
+) -> bool:
     battery = energy.battery
     grid = energy.grid
     if conditions.grid_power_below_w is not None:
@@ -117,7 +127,8 @@ def _matches(conditions: RuleConditions, energy: EnergyState, at: datetime) -> b
             or price.price_per_kwh <= conditions.price_above_per_kwh
         ):
             return False
-    if conditions.between is not None and not _in_time_window(at.time(), conditions.between):
+    local_time = at.astimezone(timezone).time() if timezone is not None else at.time()
+    if conditions.between is not None and not _in_time_window(local_time, conditions.between):
         return False
     return True
 

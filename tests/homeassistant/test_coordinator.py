@@ -12,8 +12,15 @@ from custom_components.powermanager.coordinator import PowerManagerCoordinator, 
 from custom_components.powermanager.core.powermanager_core.backends.sma_speedwire import (
     SpeedwireFrame,
 )
+from custom_components.powermanager.core.powermanager_core.control import (
+    ControlRule,
+    ControlRuntime,
+    RuleConditions,
+)
+from custom_components.powermanager.core.powermanager_core.control.watchdog import ControlWatchdog
 from custom_components.powermanager.core.powermanager_core.models import (
     BatteryState,
+    CommunicationState,
     DeviceInfo,
     EnergyState,
 )
@@ -118,3 +125,26 @@ async def test_listener_failure_retries_and_stop_cleans_up(coordinator):
         listener.__aexit__.assert_awaited_once()
     assert coordinator._speedwire_task is None
     assert not coordinator._speedwire_monitor.listening
+
+
+async def test_coordinator_uses_runtime_for_simulation_decision(coordinator):
+    now = datetime.now(UTC)
+    battery = BatteryState(
+        timestamp=now,
+        battery_soc_percent=50,
+        communication_state=CommunicationState.ONLINE,
+    )
+    coordinator._rules = (ControlRule("always", 1, RuleConditions(), 100),)
+    coordinator._simulation_runtime = ControlRuntime(
+        coordinator._rules, watchdog=ControlWatchdog(timeout_seconds=60)
+    )
+    client = AsyncMock()
+    client.get_device_info.return_value = coordinator.data.device_info
+    client.read_state.return_value = battery
+    with patch("custom_components.powermanager.coordinator.SunnyIslandClient") as factory:
+        factory.return_value.__aenter__.return_value = client
+        data = await coordinator._async_update_data()
+    assert data.simulated_rule_id == "always"
+    assert data.simulated_target_power_w == 100
+    assert data.simulated_accepted is True
+    assert data.simulated_reason is None

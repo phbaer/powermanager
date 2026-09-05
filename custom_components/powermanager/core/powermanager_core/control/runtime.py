@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
 
 from ..models import EnergyState
 from .policy import ControlIntent, ControlRule, evaluate_rules
@@ -21,6 +21,7 @@ class ControlDecision:
     reason: str | None
     restore_normal: bool
     simulation_record: SimulationRecord | None = None
+    held: bool = False
 
 
 class ControlRuntime:
@@ -32,11 +33,13 @@ class ControlRuntime:
         safety: SafetyConfig | None = None,
         actuator: SimulationActuator | None = None,
         watchdog: ControlWatchdog | None = None,
+        timezone: tzinfo | None = None,
     ) -> None:
         self._rules = rules
         self._safety = safety or SafetyConfig()
         self._actuator = actuator or SimulationActuator()
         self._watchdog = watchdog or ControlWatchdog()
+        self._timezone = timezone
         self._held_intent: ControlIntent | None = None
         self._cooldown_until: datetime | None = None
 
@@ -47,16 +50,20 @@ class ControlRuntime:
         watchdog_status = self._watchdog.status(at)
         if watchdog_status.last_heartbeat is not None and watchdog_status.expired:
             return ControlDecision(None, False, "watchdog expired", True)
+        held = self._held_intent is not None and at < (
+            self._held_intent.evaluated_at + timedelta(seconds=self._held_intent.hold_seconds)
+        )
         intent = self._held_intent
         if intent is None or at >= intent.evaluated_at + timedelta(seconds=intent.hold_seconds):
+            held = False
             if self._cooldown_until is not None and at < self._cooldown_until:
                 return ControlDecision(None, False, "rule cooldown active", False)
-            intent = evaluate_rules(energy, self._rules, at=at)
+            intent = evaluate_rules(energy, self._rules, at=at, timezone=self._timezone)
         if intent is None:
-            return ControlDecision(None, False, "no rule matched", False)
+            return ControlDecision(None, False, "no rule matched", False, held=held)
         valid, reason = validate_intent(intent, energy, self._safety, enabled=enabled, at=at)
         if not valid:
-            return ControlDecision(intent, False, reason, False)
+            return ControlDecision(intent, False, reason, False, held=held)
         self._watchdog.feed(at)
         record = await self._actuator.apply(intent, at=at)
         self._held_intent = intent if intent.hold_seconds > 0 else None
@@ -65,7 +72,7 @@ class ControlRuntime:
             if intent.cooldown_seconds > 0
             else None
         )
-        return ControlDecision(intent, True, None, False, record)
+        return ControlDecision(intent, True, None, False, record, held=held)
 
     @property
     def actuator(self) -> SimulationActuator:

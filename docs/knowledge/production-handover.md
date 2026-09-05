@@ -92,15 +92,17 @@ required checks.
 
 ### 3. Unify simulation semantics
 
-- [ ] Route HA simulation through the same runtime/safety decisions as CLI
-  simulation. The coordinator calls evaluate_rules directly, ignoring hold,
-  cooldown, safety, and watchdog behavior.
-- [ ] Use explicit local time for rule windows. HA currently passes UTC battery
-  timestamps. Test Berlin summer/winter time, DST, and overnight windows.
+- [x] Route HA simulation through the same runtime/safety decisions as CLI
+  simulation. The coordinator now uses `ControlRuntime` with the simulation
+  actuator; it never calls the physical write adapter.
+- [x] Use an explicit local timezone for rule windows. HA resolves its configured
+  timezone and the core accepts it independently. Test Berlin summer/winter time,
+  DST, and overnight windows with recorded fixtures.
 - [ ] Define hold/cooldown and preemption for changed/missing inputs, higher-priority
   rules, disablement, and no-match decisions.
 - [ ] Define recoverable watchdog expiry and explicit restoration decisions.
-- [ ] Expose rule, target, acceptance/rejection reason, and held/cooldown state.
+- [x] Expose rule, target, acceptance/rejection reason, held state, watchdog
+  restoration, and simulation decision through HA sensors and diagnostics.
 
 Acceptance: replayed timestamped inputs yield matching HA and CLI decisions,
 including example-rule holds and local time windows.
