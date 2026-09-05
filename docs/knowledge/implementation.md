@@ -54,6 +54,11 @@ future diagnostics surface; they never include transport exception text. HA
 entry setup and unload also clean up the passive listener and coordinator state
 when platform forwarding fails or the entry is released.
 
+Command sessions use the event loop's monotonic clock for their duration bound.
+Session state is intentionally not persisted: a process or Home Assistant
+restart cannot resume an old command, and the fresh integration remains
+monitor-only until a separately authorized recovery operation.
+
 ## CI validation
 
 The HACS release job now gates packaging on the repository tests, Ruff, HACS

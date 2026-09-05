@@ -91,6 +91,10 @@ verified baseline restoration after failures. The adapter remains disconnected
 from the Home Assistant coordinator and all HA control status remains
 `monitor_only`.
 
+Session timing uses a monotonic deadline and session state is not persisted, so
+restarts never resume a prior command. Recovery after a restart remains an
+explicitly authorized commissioning action.
+
 Physical commissioning is a separate mandatory gate. Confirm topology, ownership,
 firmware behavior, fallback, and an emergency-stop procedure before wiring any
 live control path. Follow the ordered [production handover](production-handover.md).
