@@ -161,11 +161,12 @@ class SunnyIslandControlAdapter:
             restored_mode = await self._read_u32(40210)
         except Exception as error:
             raise ControlWriteError("Sunny Island baseline restoration readback failed") from error
-        if (restored_control, restored_mode) != (
-            baseline.communication_control,
-            baseline.external_setpoint_mode,
-        ):
+        if restored_mode != baseline.external_setpoint_mode:
             raise ControlWriteError("Sunny Island operating state did not restore")
+        if baseline.communication_control is not None and (
+            restored_control != baseline.communication_control
+        ):
+            raise ControlWriteError("Sunny Island communication state did not restore")
 
     async def restore_normal_operation(self) -> None:
         """Stop external commands and return active-power mode to Off."""
