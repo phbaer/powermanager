@@ -8,8 +8,10 @@ controller ownership check; constructing it never writes to the inverter.
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
+from datetime import UTC, datetime
 from typing import Protocol
 
 from ...exceptions import PowerManagerError
@@ -57,6 +59,16 @@ class ControlBaseline:
 
     external_setpoint_mode: int
     communication_control: int
+
+
+@dataclass(frozen=True, slots=True)
+class ControlEvent:
+    """Sanitized bounded-session event suitable for diagnostics."""
+
+    kind: str
+    timestamp: datetime
+    power_w: float | None = None
+    reason: str | None = None
 
 
 class SunnyIslandControlAdapter:
@@ -238,57 +250,94 @@ class ControlCommandSession:
         interval_seconds: float = 0.25,
         max_duration_seconds: float = 900,
         validate_command: Callable[[float], Awaitable[None]] | None = None,
+        max_events: int = 64,
     ) -> None:
         if not 0 < interval_seconds <= 0.5:
             raise ValueError("heartbeat interval must be greater than 0 and at most 0.5 seconds")
         if max_duration_seconds <= 0:
             raise ValueError("maximum command duration must be positive")
+        if not 0 < max_events <= 256:
+            raise ValueError("maximum event count must be between 1 and 256")
         self._adapter = adapter
         self._interval = interval_seconds
         self._max_duration = max_duration_seconds
         self._validate_command = validate_command
         self._active = False
+        self._events: deque[ControlEvent] = deque(maxlen=max_events)
+
+    @property
+    def events(self) -> tuple[ControlEvent, ...]:
+        """Return the most recent bounded set of sanitized session events."""
+        return tuple(self._events)
+
+    def _record_event(
+        self, kind: str, *, power_w: float | None = None, reason: str | None = None
+    ) -> None:
+        self._events.append(
+            ControlEvent(kind, datetime.now(UTC), power_w=power_w, reason=reason)
+        )
 
     async def run(self, power_w: float, stop: asyncio.Event) -> None:
         """Run a preflighted session until stopped, then restore the baseline."""
         if self._active:
+            self._record_event("session_rejected", power_w=power_w, reason="overlap")
             raise ControlWriteError("another control command session is already active")
         self._active = True
         baseline: ControlBaseline | None = None
         primary_error: BaseException | None = None
+        phase = "preflight"
         try:
             if not await self._adapter.verify_failsafe():
                 raise ControlWriteError("Sunny Island failsafe preflight did not pass")
+            phase = "baseline"
             baseline = await self._adapter.capture_baseline()
+            self._record_event("session_started", power_w=power_w)
             loop = asyncio.get_running_loop()
             deadline = loop.time() + self._max_duration
             while not stop.is_set():
+                phase = "validation"
                 if self._validate_command is not None:
                     await self._validate_command(power_w)
+                phase = "heartbeat"
                 try:
                     await self._adapter.set_active_power(power_w)
                 except TimeoutError as error:
                     raise ControlWriteError("setpoint heartbeat transport timed out") from error
+                phase = "wait"
                 try:
                     remaining = deadline - loop.time()
                     if remaining <= 0:
+                        self._record_event(
+                            "session_expired", power_w=power_w, reason="max_duration"
+                        )
                         return
                     await asyncio.wait_for(stop.wait(), timeout=min(self._interval, remaining))
                 except TimeoutError:
                     if loop.time() >= deadline:
+                        self._record_event(
+                            "session_expired", power_w=power_w, reason="max_duration"
+                        )
                         return
                     continue
+            self._record_event("session_stopped", power_w=power_w, reason="stop_requested")
         except BaseException as error:
             primary_error = error
+            self._record_event(
+                "session_failed",
+                power_w=power_w,
+                reason="cancelled" if isinstance(error, asyncio.CancelledError) else phase,
+            )
             raise
         finally:
             if baseline is not None:
                 try:
                     await self._adapter.restore_baseline(baseline)
-                except Exception as restore_error:
+                    self._record_event("baseline_restored", power_w=power_w)
+                except Exception:
+                    self._record_event("restoration_failed", power_w=power_w, reason="transport")
                     if primary_error is None:
                         raise
-                    primary_error.add_note(f"control restoration failed: {restore_error}")
+                    primary_error.add_note("control restoration failed")
             self._active = False
 
     async def run_for(self, power_w: float, duration_seconds: float) -> None:

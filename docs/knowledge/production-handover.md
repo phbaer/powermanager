@@ -149,7 +149,11 @@ and no transport writes.
 - [x] Separate raw write capability from the read-only transport. The Modbus
   client now exposes writes only through `PymodbusTcpWriteTransport`; the
   Sunny Island monitor retains the read-only transport.
-- [ ] Add bounded, sanitized command/recovery events for diagnostics.
+- [x] Add bounded, sanitized command/recovery events for diagnostics. The core
+  session exposes a fixed-size event buffer for starts, failures, expiry,
+  cancellation, and baseline restoration; event reasons are fixed categories
+  and never include transport exception text. HA still needs to connect this
+  surface to a commissioned control entry point before any writes are exposed.
 
 Acceptance: fault injection demonstrates bounded sessions and explicit recovery
 failure reporting. Production entry points remain disabled.

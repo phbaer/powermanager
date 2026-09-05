@@ -162,6 +162,34 @@ def test_session_rejects_failed_failsafe_preflight() -> None:
     assert transport.calls == []
 
 
+def test_session_events_are_bounded_and_sanitized() -> None:
+    transport = FakeTransport()
+    adapter = SunnyIslandControlAdapter(
+        transport,
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+    )
+    session = ControlCommandSession(adapter, max_duration_seconds=0.001, max_events=2)
+    asyncio.run(session.run(100, asyncio.Event()))
+    assert len(session.events) == 2
+    assert [event.kind for event in session.events] == ["session_expired", "baseline_restored"]
+    assert all(event.reason in {None, "max_duration"} for event in session.events)
+
+
+def test_failed_preflight_is_recorded_without_transport_details() -> None:
+    transport = FakeTransport()
+    transport.reads[41193] = [0, 2506]
+    adapter = SunnyIslandControlAdapter(
+        transport,
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+    )
+    session = ControlCommandSession(adapter)
+    with pytest.raises(ControlWriteError, match="preflight"):
+        asyncio.run(session.run(100, asyncio.Event()))
+    assert [(event.kind, event.reason) for event in session.events] == [
+        ("session_failed", "preflight")
+    ]
+
+
 def test_session_revalidates_before_each_heartbeat() -> None:
     transport = FakeTransport()
     adapter = SunnyIslandControlAdapter(
@@ -206,6 +234,20 @@ def test_restore_attempts_mode_after_communication_write_failure() -> None:
     with pytest.raises(ControlWriteError, match="restoration write failed"):
         asyncio.run(adapter.restore_normal_operation())
     assert transport.calls == [(40210, [0, 303], 3)]
+
+
+def test_restoration_failure_is_recorded_without_exception_text() -> None:
+    transport = RestoreFailureTransport()
+    adapter = SunnyIslandControlAdapter(
+        transport,
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+    )
+    session = ControlCommandSession(adapter, max_duration_seconds=0.001)
+    with pytest.raises(ControlWriteError, match="restoration write failed"):
+        asyncio.run(session.run(100, asyncio.Event()))
+    assert session.events[-1].kind == "restoration_failed"
+    assert session.events[-1].reason == "transport"
+    assert "simulated" not in repr(session.events)
 
 
 def test_overlapping_sessions_are_rejected_and_first_session_restores() -> None:
