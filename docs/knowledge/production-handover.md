@@ -90,8 +90,10 @@ restart without relying on packages installed by the development environment.
   coverage remains open.
 - [x] Options-flow validation checks independent telemetry, tariff, and rule
   sources together, including conflicts when valid YAML rules are supplied.
-- [ ] Extend observation tests to timed silence, DNS failure/recovery, and sustained
-  traffic alongside scheduled Modbus updates.
+- [x] Observation tests cover timed silence plus DNS and socket failure/recovery
+  alongside scheduled Modbus updates.
+- [ ] Validate sustained multicast traffic and gaps on the deployment network
+  alongside scheduled Modbus updates.
 - [ ] Validate multicast reception/recovery on the deployment network; document
   interface/relay limitations and identify the Home Manager generation if required.
 - [x] Read stable serial and firmware identity from the documented SI registers

@@ -157,6 +157,38 @@ async def test_listener_failure_retries_and_stop_cleans_up(coordinator):
     assert not coordinator._speedwire_monitor.listening
 
 
+async def test_dns_failure_retries_and_recovers_listener(coordinator):
+    import asyncio
+
+    recovered = asyncio.Event()
+    attempts = 0
+
+    async def resolve():
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise OSError("DNS unavailable")
+        return {"127.0.0.1"}
+
+    async def receive(*, timeout):
+        recovered.set()
+        await asyncio.Future()
+
+    with (
+        patch.object(coordinator, "_resolve_inverter_addresses", AsyncMock(side_effect=resolve)),
+        patch("custom_components.powermanager.coordinator.SpeedwireListener") as factory,
+        patch("custom_components.powermanager.coordinator.asyncio.sleep", AsyncMock()),
+    ):
+        listener = factory.return_value
+        listener.__aenter__.return_value = listener
+        listener.receive = AsyncMock(side_effect=receive)
+        coordinator.start_speedwire_monitor()
+        await asyncio.wait_for(recovered.wait(), timeout=2)
+        assert attempts == 2
+        assert coordinator.data.speedwire_observation_state == "unknown"
+        await coordinator.stop_speedwire_monitor()
+
+
 async def test_coordinator_uses_runtime_for_simulation_decision(coordinator):
     now = datetime.now(UTC)
     battery = BatteryState(

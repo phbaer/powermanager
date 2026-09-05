@@ -213,13 +213,9 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         try:
             while True:
                 try:
-                    addresses = await asyncio.get_running_loop().getaddrinfo(
-                        self._config.host, None, family=socket.AF_INET,
-                        type=socket.SOCK_DGRAM,
+                    self._speedwire_monitor.inverter_addresses = (
+                        await self._resolve_inverter_addresses()
                     )
-                    self._speedwire_monitor.inverter_addresses = {
-                        address[4][0] for address in addresses
-                    }
                     async with SpeedwireListener() as listener:
                         self._speedwire_monitor.listening = True
                         self._speedwire_monitor.last_received_at = None
@@ -240,6 +236,16 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         finally:
             self._speedwire_monitor.listening = False
             self._publish_observation()
+
+    async def _resolve_inverter_addresses(self) -> set[str]:
+        """Resolve the configured inverter host for passive source filtering."""
+        addresses = await asyncio.get_running_loop().getaddrinfo(
+            self._config.host,
+            None,
+            family=socket.AF_INET,
+            type=socket.SOCK_DGRAM,
+        )
+        return {address[4][0] for address in addresses}
 
     def _with_observation(self, data: PowerManagerData) -> PowerManagerData:
         """Use one authoritative snapshot for polls and passive updates."""
