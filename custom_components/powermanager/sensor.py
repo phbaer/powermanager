@@ -173,6 +173,16 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
         value_fn=lambda coordinator: coordinator.data.simulated_reason or "none",
     ),
     PowerManagerSensorDescription(
+        key="control_mode",
+        translation_key="control_mode",
+        value_fn=lambda coordinator: coordinator.data.control_mode,
+    ),
+    PowerManagerSensorDescription(
+        key="control_block_reason",
+        translation_key="control_block_reason",
+        value_fn=lambda coordinator: coordinator.data.control_block_reason,
+    ),
+    PowerManagerSensorDescription(
         key="speedwire_source_count",
         translation_key="speedwire_source_count",
         value_fn=lambda coordinator: len(coordinator.data.speedwire_sources),

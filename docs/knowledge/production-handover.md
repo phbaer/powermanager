@@ -170,6 +170,10 @@ spoof, suppress, or firewall Home Manager traffic as a control strategy.
 
 ### 7. Expose opt-in manual control, then scheduled charging
 
+The integration now exposes an explicit `monitor_only` mode, an unavailable
+active-control status, and a block reason. This is status only; there is still no
+HA enable switch, write service, or coordinator path to the command adapter.
+
 - [ ] Connect the reviewed runtime only after stages 1–6 pass.
 - [ ] Add explicit HA enablement, modes, power/reserve limits, ownership
   confirmation, restore-normal action, and emergency stop.

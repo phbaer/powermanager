@@ -34,4 +34,7 @@ async def async_get_config_entry_diagnostics(
         "simulated_reason": data.simulated_reason,
         "simulated_restore_normal": data.simulated_restore_normal,
         "simulated_held": data.simulated_held,
+        "control_mode": data.control_mode,
+        "active_control_available": data.active_control_available,
+        "control_block_reason": data.control_block_reason,
     }

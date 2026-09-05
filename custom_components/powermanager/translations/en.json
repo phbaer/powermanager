@@ -72,6 +72,7 @@
     "binary_sensor": {
       "external_controller_warning": {"name": "Possible external controller"}
       ,"control_ownership_clear": {"name": "Control ownership eligibility"}
+      ,"active_control_available": {"name": "Active control available"}
     },
     "sensor": {
       "device_type": {"name": "Device type"},
@@ -92,6 +93,8 @@
       "simulated_target_power": {"name": "Simulated target battery power"},
       "simulated_decision": {"name": "Simulated decision"},
       "simulated_reason": {"name": "Simulated decision reason"},
+      "control_mode": {"name": "Control mode"},
+      "control_block_reason": {"name": "Control block reason"},
       "speedwire_source_count": {"name": "Observed SMA Speedwire sources"}
     }
   },

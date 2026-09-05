@@ -18,6 +18,7 @@ async def async_setup_entry(
     """Expose a warning when another SMA sender appears on Speedwire."""
     async_add_entities([ExternalControllerWarning(hass.data[DOMAIN][entry.entry_id], entry)])
     async_add_entities([ControlOwnershipClear(hass.data[DOMAIN][entry.entry_id], entry)])
+    async_add_entities([ActiveControlAvailability(hass.data[DOMAIN][entry.entry_id], entry)])
 
 
 class ExternalControllerWarning(CoordinatorEntity[PowerManagerCoordinator], BinarySensorEntity):
@@ -60,3 +61,27 @@ class ControlOwnershipClear(CoordinatorEntity[PowerManagerCoordinator], BinarySe
     def is_on(self) -> bool:
         """Return ownership eligibility; this never enables a write path."""
         return self.coordinator.data.control_ownership_clear
+
+
+class ActiveControlAvailability(CoordinatorEntity[PowerManagerCoordinator], BinarySensorEntity):
+    """Expose the hard monitor-only boundary as an explicit status entity."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "active_control_available"
+
+    def __init__(self, coordinator: PowerManagerCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.unique_id or entry.entry_id}_active_control_available"
+
+    @property
+    def is_on(self) -> bool:
+        """Return whether a commissioned active-control path is available."""
+        return self.coordinator.data.active_control_available
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        """Explain why active control is unavailable."""
+        return {
+            "control_mode": self.coordinator.data.control_mode,
+            "reason": self.coordinator.data.control_block_reason,
+        }

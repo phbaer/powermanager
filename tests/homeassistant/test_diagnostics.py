@@ -31,3 +31,5 @@ async def test_diagnostics_redacts_host(hass) -> None:
     assert diagnostics["entry"]["host"] != "10.0.1.240"
     assert "10.0.1.192" not in str(diagnostics)
     assert diagnostics["speedwire_source_count"] == 1
+    assert diagnostics["control_mode"] == "monitor_only"
+    assert diagnostics["active_control_available"] is False

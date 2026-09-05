@@ -6,7 +6,10 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.powermanager.binary_sensor import ExternalControllerWarning
+from custom_components.powermanager.binary_sensor import (
+    ActiveControlAvailability,
+    ExternalControllerWarning,
+)
 from custom_components.powermanager.const import DOMAIN
 from custom_components.powermanager.coordinator import PowerManagerCoordinator, PowerManagerData
 from custom_components.powermanager.core.powermanager_core.backends.sma_speedwire import (
@@ -149,3 +152,12 @@ async def test_coordinator_uses_runtime_for_simulation_decision(coordinator):
     assert data.simulated_target_power_w == 100
     assert data.simulated_accepted is True
     assert data.simulated_reason is None
+
+
+async def test_active_control_status_is_explicitly_monitor_only(coordinator):
+    entity = ActiveControlAvailability(coordinator, Mock(unique_id="test"))
+    assert entity.is_on is False
+    assert entity.extra_state_attributes == {
+        "control_mode": "monitor_only",
+        "reason": "active control is not commissioned",
+    }

@@ -83,6 +83,9 @@ class PowerManagerData:
     simulated_reason: str | None = None
     simulated_restore_normal: bool = False
     simulated_held: bool = False
+    control_mode: str = "monitor_only"
+    active_control_available: bool = False
+    control_block_reason: str = "active control is not commissioned"
 
 
 class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
