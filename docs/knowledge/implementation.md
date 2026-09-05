@@ -42,7 +42,10 @@ The control adapter is not connected to the coordinator. Its setpoint boundary
 requires a successful read-only failsafe preflight, explicit ownership and
 enablement, bounded sessions, heartbeat validation, and baseline restoration with
 readback. Recovery writes are isolated from the monitor transport and remain
-available only to the separately reviewed adapter.
+available only to the separately reviewed adapter. Bounded sessions retain
+sanitized start, failure, expiry, cancellation, and restoration events for a
+future diagnostics surface; they never include transport exception text. HA
+entry setup also cleans up the passive listener if platform forwarding fails.
 
 ## CI validation
 

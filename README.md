@@ -59,6 +59,11 @@ also reads the Sunny Island serial number and packed firmware identity for stabl
 device metadata. These indicators do not authorize control; supervised hardware
 commissioning is still required before any command adapter can be connected.
 
+The disconnected command-session adapter keeps a bounded, sanitized event buffer
+for future diagnostics and verifies baseline restoration after each bounded test
+session. Home Assistant setup removes that passive monitor state if platform
+forwarding fails, so a retry cannot inherit a leaked listener.
+
 Optional grid/PV/load and price telemetry is accepted only while fresh. Grid
 power is normalized from kW to W. Configure either a market-price entity or a
 fixed contract import price in EUR/kWh; a fixed price does not require a Home

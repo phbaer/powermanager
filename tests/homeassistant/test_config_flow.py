@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.powermanager import PLATFORMS, async_setup_entry
 from custom_components.powermanager.config_flow import PowerManagerOptionsFlow
 from custom_components.powermanager.const import DOMAIN
 from custom_components.powermanager.core.powermanager_core.models import CommunicationState
@@ -52,3 +55,44 @@ async def test_options_flow_accepts_empty_optional_telemetry_sources() -> None:
 
     assert data["scan_interval"] == 30
     assert data["telemetry_max_age"] == 120
+
+
+async def test_setup_failure_stops_monitor_and_removes_coordinator(hass) -> None:
+    """A failed platform setup cannot leave a retrying Speedwire task behind."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"host": "127.0.0.1", "port": 502, "unit_id": 3},
+    )
+    entry.add_to_hass(hass)
+    coordinator = Mock()
+    coordinator.async_config_entry_first_refresh = AsyncMock()
+    coordinator.stop_speedwire_monitor = AsyncMock()
+    with (
+        patch("custom_components.powermanager.PowerManagerCoordinator", return_value=coordinator),
+        patch.object(hass.config_entries, "async_forward_entry_setups", side_effect=RuntimeError),
+    ):
+        with pytest.raises(RuntimeError):
+            await async_setup_entry(hass, entry)
+
+    coordinator.start_speedwire_monitor.assert_called_once_with()
+    coordinator.stop_speedwire_monitor.assert_awaited_once_with()
+    assert entry.entry_id not in hass.data.get(DOMAIN, {})
+
+
+async def test_setup_forwards_only_read_only_platforms(hass) -> None:
+    """The entry setup surface remains limited to monitor entities."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"host": "127.0.0.1", "port": 502, "unit_id": 3},
+    )
+    entry.add_to_hass(hass)
+    coordinator = Mock()
+    coordinator.async_config_entry_first_refresh = AsyncMock()
+    coordinator.stop_speedwire_monitor = AsyncMock()
+    with (
+        patch("custom_components.powermanager.PowerManagerCoordinator", return_value=coordinator),
+        patch.object(hass.config_entries, "async_forward_entry_setups", AsyncMock()) as forward,
+    ):
+        assert await async_setup_entry(hass, entry)
+
+    forward.assert_awaited_once_with(entry, PLATFORMS)
