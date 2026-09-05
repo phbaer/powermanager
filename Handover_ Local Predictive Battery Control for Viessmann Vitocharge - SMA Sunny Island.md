@@ -1102,6 +1102,11 @@ The first milestone is complete when:
 
 # Current implementation status (2026-09-04)
 
+Update (2026-09-05): the [production readiness handover](docs/knowledge/production-handover.md)
+supersedes the remaining-work list below. It records the production review,
+passive detection improvements, and the required order of software and physical
+commissioning gates. Physical commissioning is not the only remaining blocker.
+
 The repository has progressed beyond the original monitor-only skeleton. It is
 now `powermanager`, with a reusable core under
 `custom_components/powermanager/core/powermanager_core` and a HACS-compatible

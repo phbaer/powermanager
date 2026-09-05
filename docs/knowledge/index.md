@@ -9,6 +9,7 @@ entries:
   - roadmap.md
   - control-plan.md
   - control-write-research.md
+  - production-handover.md
 ---
 
 # PowerManager
@@ -22,5 +23,6 @@ telemetry providers are optional.
 - [Architecture](architecture.md) - Runtime layers and backend/provider boundaries.
 - [Implementation](implementation.md) - What is implemented and how to operate it.
 - [Roadmap](roadmap.md) - Open work and safety gates.
+- [Production handover](production-handover.md) - Ordered tasks and acceptance gates.
 - [Control plan](control-plan.md) - Control infrastructure and declarative rules.
 - [Control/write research](control-write-research.md) - Verified SMA register and fail-safe constraints.

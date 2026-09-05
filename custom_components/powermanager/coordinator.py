@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass
-from datetime import timedelta
+import socket
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime, timedelta
 
 import yaml
 from homeassistant.config_entries import ConfigEntry
@@ -49,7 +50,12 @@ from .core.powermanager_core.backends.sma_sunny_island import (
 from .core.powermanager_core.control.policy import evaluate_rules
 from .core.powermanager_core.control.rules import parse_rules_document
 from .core.powermanager_core.exceptions import PowerManagerError
-from .core.powermanager_core.models import BatteryState, DeviceInfo, EnergyState
+from .core.powermanager_core.models import (
+    BatteryState,
+    CommunicationState,
+    DeviceInfo,
+    EnergyState,
+)
 from .core.powermanager_core.telemetry import ExponentialBackoff
 from .ha_entity_provider import HomeAssistantEntityGridProvider
 from .ha_forecast_provider import HomeAssistantEntityForecastProvider
@@ -70,6 +76,7 @@ class PowerManagerData:
     simulated_rule_id: str | None = None
     simulated_target_power_w: float | None = None
     control_ownership_clear: bool = False
+    speedwire_observation_state: CommunicationState = CommunicationState.UNKNOWN
 
 
 class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
@@ -137,32 +144,61 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             self._speedwire_task = None
 
     async def _observe_speedwire(self) -> None:
-        listener = SpeedwireListener()
+        """Observe passively, retry failures, and expire health during silence."""
         try:
-            async with listener:
-                async for frame in listener.frames():
-                    self._speedwire_monitor.observe(frame)
-                    if self._speedwire_monitor.possible_external_controller:
-                        self._create_issue(
-                            "possible_external_controller", "possible_external_controller"
-                        )
-                    if self.data is not None:
-                        self.async_set_updated_data(
-                            PowerManagerData(
-                                self.data.device_info,
-                                self.data.battery_state,
-                                self.data.energy_state,
-                                self._speedwire_monitor.possible_external_controller,
-                                tuple(sorted(self._speedwire_monitor.observed_sources)),
-                                self.data.simulated_rule_id,
-                                self.data.simulated_target_power_w,
-                                self.data.control_ownership_clear,
-                            )
-                        )
-        except asyncio.CancelledError:
-            raise
-        except OSError as error:
-            _LOGGER.warning("SMA Speedwire listener unavailable: %s", error)
+            while True:
+                try:
+                    addresses = await asyncio.get_running_loop().getaddrinfo(
+                        self._config.host, None, family=socket.AF_INET,
+                        type=socket.SOCK_DGRAM,
+                    )
+                    self._speedwire_monitor.inverter_addresses = {
+                        address[4][0] for address in addresses
+                    }
+                    async with SpeedwireListener() as listener:
+                        self._speedwire_monitor.listening = True
+                        self._speedwire_monitor.last_received_at = None
+                        self._publish_observation()
+                        while True:
+                            try:
+                                frame = await listener.receive(timeout=5)
+                            except TimeoutError:
+                                self._publish_observation()
+                                continue
+                            self._speedwire_monitor.observe(frame)
+                            self._publish_observation()
+                except OSError as error:
+                    self._speedwire_monitor.listening = False
+                    self._publish_observation()
+                    _LOGGER.warning("SMA Speedwire listener unavailable: %s", error)
+                    await asyncio.sleep(30)
+        finally:
+            self._speedwire_monitor.listening = False
+            self._publish_observation()
+
+    def _with_observation(self, data: PowerManagerData) -> PowerManagerData:
+        """Use one authoritative snapshot for polls and passive updates."""
+        monitor = self._speedwire_monitor
+        now = datetime.now(UTC)
+        return replace(
+            data,
+            possible_external_controller=monitor.possible_external_controller,
+            speedwire_sources=tuple(sorted(monitor.observed_sources)),
+            speedwire_observation_state=monitor.observation_state(now),
+            control_ownership_clear=monitor.ownership_eligible(
+                confirmed=self._control_ownership_confirmed, at=now,
+            ),
+        )
+
+    def _publish_observation(self) -> None:
+        """Update listeners without resetting Modbus polling or its health."""
+        if self._speedwire_monitor.possible_external_controller:
+            self._create_issue("possible_external_controller", "possible_external_controller")
+        if self.data is not None:
+            updated = self._with_observation(self.data)
+            if updated != self.data:
+                self.data = updated
+                self.async_update_listeners()
 
     async def _async_update_data(self) -> PowerManagerData:
         """Read state through a new TCP connection, allowing safe reconnects."""
@@ -206,17 +242,13 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             forecast=forecast_state,
         )
         intent = evaluate_rules(energy_state, self._rules, at=battery_state.timestamp)
-        return PowerManagerData(
+        return self._with_observation(PowerManagerData(
             device_info=device_info,
             battery_state=battery_state,
             energy_state=energy_state,
             simulated_rule_id=intent.rule_id if intent else None,
             simulated_target_power_w=intent.target_power_w if intent else None,
-            control_ownership_clear=(
-                self._control_ownership_confirmed
-                and not self._speedwire_monitor.possible_external_controller
-            ),
-        )
+        ))
 
     def _schedule_retry(self) -> None:
         """Increase only the next read delay; successful reads reset it."""

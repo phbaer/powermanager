@@ -9,7 +9,16 @@ Island used in older Viessmann Vitocharge systems.
 `0.1.0` is **monitor only**. A guarded write adapter, heartbeat, restore-normal
 path, and read-only commissioning preflight are present, but no production
 control is enabled. Active control remains gated on ownership and failure-mode
-validation on the supported hardware.
+validation on the supported hardware, plus software safety and session-lifecycle
+hardening. See the [production handover](docs/knowledge/production-handover.md)
+for the ordered implementation checklist and acceptance gates.
+
+Passive Home Manager detection warns about other SMA senders; it does not prove
+their identity or exclusive control ownership. Warnings persist across polls and
+listener retries. The warning's `observation_state` attribute distinguishes unknown,
+offline, stale, and online observation. Failed listeners retry after 30 seconds;
+traffic expires after 120 seconds. Silence never grants ownership eligibility.
+Reload starts a new observation history. No indicator enables writes.
 
 ## Development
 

@@ -25,5 +25,7 @@ async def async_get_config_entry_diagnostics(
         "device_info": asdict(data.device_info),
         "battery_state": asdict(data.battery_state),
         "possible_external_controller": data.possible_external_controller,
-        "speedwire_sources": list(data.speedwire_sources),
+        "speedwire_source_count": len(data.speedwire_sources),
+        "speedwire_observation_state": data.speedwire_observation_state,
+        "control_ownership_clear": data.control_ownership_clear,
     }

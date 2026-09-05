@@ -31,9 +31,19 @@ class ExternalControllerWarning(CoordinatorEntity[PowerManagerCoordinator], Bina
         self._attr_unique_id = f"{entry.unique_id or entry.entry_id}_external_controller_warning"
 
     @property
-    def is_on(self) -> bool:
+    def is_on(self) -> bool | None:
         """Return true when a non-Sunny-Island sender has been observed."""
-        return self.coordinator.data.possible_external_controller
+        data = self.coordinator.data
+        if data.possible_external_controller:
+            return True
+        if data.speedwire_observation_state != "online":
+            return None
+        return False
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str]:
+        """Expose observation health independently of the latched warning."""
+        return {"observation_state": self.coordinator.data.speedwire_observation_state}
 
 
 class ControlOwnershipClear(CoordinatorEntity[PowerManagerCoordinator], BinarySensorEntity):

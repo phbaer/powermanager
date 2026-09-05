@@ -6,24 +6,23 @@ tags: [roadmap, testing, safety]
 status: draft
 ---
 
-# Next milestones
+# Required milestone order
 
-1. Expand Home Assistant tests beyond config-flow and diagnostics redaction to
-   cover options, entity conversion, unavailable states, and reload.
-2. Add retry/backoff handling to the normalized energy state. Stale/offline
-   source classification and tariff-unit normalization are implemented.
-3. Validate semantic mappings for the structurally decoded Speedwire `0x6069`
-   records before converting them into grid/PV measurements.
-4. Keep CI validation for `hassfest` and HACS healthy. Both are configured.
-5. Add delayed charging policies using read-only telemetry.
+The [production handover](production-handover.md) contains the authoritative
+checklists and acceptance criteria after the 2026-09-05 review.
 
-# Explicitly gated work
+1. Reproducible monitor-only installation and dependency declarations.
+2. Monitoring lifecycle tests, stable identity, soak validation, and release gates.
+3. Consistent HA/CLI simulation with local time and hold semantics.
+4. Independent fail-closed safety validation for every required input.
+5. Bounded command sessions and recovery tested with fake transport.
+6. Explicitly authorized, supervised physical commissioning and failure tests.
+7. Opt-in manual control, followed by scheduled delayed charging.
+8. Predictive planning, backtesting, and shadow-mode validation.
 
-Active battery control is not part of the current release. It requires verified
-register semantics, explicit opt-in, command watchdogs, restore-normal behavior,
-and hardware validation before implementation.
+# Current boundary
 
-The documented register path is `40210=1079` plus cyclic `40149`/`40151`
-setpoints. Before implementing it, read back the timeout/fallback configuration
-(`41195`, `41193`, `44037`) and establish whether the Home Manager or
-PowerManager owns active-power control. Competing writers are unsupported.
+Active control remains disabled. Backoff, forecast inputs, tariff normalization,
+and conservative passive sender observation are implemented. The guarded command
+adapter exists but must not be wired into production yet. Neither a successful
+read-only preflight nor quiet multicast proves safe ownership.
