@@ -53,6 +53,12 @@ The polling interval can be adjusted from the integration's Home Assistant optio
 flow (5–300 seconds). Connection details remain in the config entry and all device
 communication remains read-only.
 
+The integration exposes the current control mode as `monitor_only`, reports that
+active control is unavailable, and includes the block reason in diagnostics. It
+also reads the Sunny Island serial number and packed firmware identity for stable
+device metadata. These indicators do not authorize control; supervised hardware
+commissioning is still required before any command adapter can be connected.
+
 Optional grid/PV/load and price telemetry is accepted only while fresh. Grid
 power is normalized from kW to W. Configure either a market-price entity or a
 fixed contract import price in EUR/kWh; a fixed price does not require a Home

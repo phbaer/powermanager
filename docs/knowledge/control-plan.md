@@ -74,9 +74,13 @@ control.
 - Manual override and emergency stop always supersede rules.
 - Production execution requires hardware-specific register verification.
 
-The adapter, heartbeat, restore-normal operation, and read-only preflight exist,
-but their production safety contract is incomplete. Software work includes
-per-source freshness and operating-limit validation, consistent HA simulation,
-continuous session validation, and verified restoration after failures.
-Physical commissioning is a separate mandatory gate. Follow the ordered
-[production handover](production-handover.md) before wiring any live control path.
+The adapter, heartbeat, restore-normal operation, and read-only preflight exist.
+The core now has per-source freshness and operating-limit validation, consistent
+HA simulation, continuous session validation callbacks, bounded sessions, and
+verified baseline restoration after failures. The adapter remains disconnected
+from the Home Assistant coordinator and all HA control status remains
+`monitor_only`.
+
+Physical commissioning is a separate mandatory gate. Confirm topology, ownership,
+firmware behavior, fallback, and an emergency-stop procedure before wiring any
+live control path. Follow the ordered [production handover](production-handover.md).

@@ -32,6 +32,18 @@ never supplied to a control policy. Market-price entities must state an explicit
 `/kWh` or `/MWh` unit; `/MWh` prices are normalized to `/kWh` and ambiguous
 unitless values are rejected.
 
+The core safety validator also checks direct model inputs: source communication
+state, per-source freshness, timestamps in the future, finite targets, battery
+SoC, operating state, maximum charge SoC, dynamic discharge floor, and reported
+charge limits. HA simulation uses the same runtime as standalone simulation and
+reports its decision reason, hold state, and watchdog restoration status.
+
+The control adapter is not connected to the coordinator. Its setpoint boundary
+requires a successful read-only failsafe preflight, explicit ownership and
+enablement, bounded sessions, heartbeat validation, and baseline restoration with
+readback. Recovery writes are isolated from the monitor transport and remain
+available only to the separately reviewed adapter.
+
 ## CI validation
 
 The HACS release job now gates packaging on the repository tests, Ruff, HACS
