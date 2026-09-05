@@ -17,3 +17,4 @@ def test_manifest_declares_runtime_modbus_dependency() -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     assert "pymodbus==3.13.1" in manifest["requirements"]
+    assert manifest["homeassistant"] == "2025.1.0"

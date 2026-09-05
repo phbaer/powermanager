@@ -65,6 +65,9 @@ Complete each acceptance gate before advancing to its dependent stage.
   manually installing dependencies.
 - [ ] Validate the declared minimum and a current supported HA version; correct
   compatibility metadata if necessary.
+- [x] Keep the manifest and HACS metadata aligned on the declared minimum
+  Home Assistant version (`2025.1.0`); validation against an actual current HA
+  release remains open.
 - [ ] Run HACS validation and full hassfest and record actual results.
 
 Acceptance: a fresh installation exposes correct read-only entities and survives
