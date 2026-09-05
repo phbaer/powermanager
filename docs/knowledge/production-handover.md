@@ -134,17 +134,18 @@ and no transport writes.
 - [x] Revalidate the command through an optional async validation callback before
   every heartbeat. HA still needs to provide the production callback with live
   telemetry and ownership state.
-- [ ] Prevent overlapping sessions and define override/emergency-stop precedence.
-  Revoked control permission must not prevent necessary recovery.
+- [x] Prevent overlapping sessions; cancellation cleanup is covered by fake
+  transport tests. Manual override and emergency-stop precedence still need the
+  HA control surface, and revoked control permission must not block recovery.
 - [x] Separate transport timeouts from normal session expiry and enforce a
   configurable maximum session duration. Transport heartbeat timeouts now fail
   the session rather than being treated as normal expiry.
 - [x] Capture approved baseline operating settings and verify restoration. The
   session restores communication/mode values and reads them back; the dedicated
   restore-normal path remains available for recovery.
-- [x] Test partial restoration writes and failed restoration reporting with fake
-  transport. Cancellation, disconnected transport, clock changes, and process
-  restart policy still need dedicated coverage.
+- [x] Test partial restoration writes, failed restoration reporting, cancellation,
+  and overlapping sessions with fake transport. Disconnected transport, clock
+  changes, and process restart policy still need dedicated coverage.
 - [x] Separate raw write capability from the read-only transport. The Modbus
   client now exposes writes only through `PymodbusTcpWriteTransport`; the
   Sunny Island monitor retains the read-only transport.

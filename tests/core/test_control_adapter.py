@@ -206,3 +206,54 @@ def test_restore_attempts_mode_after_communication_write_failure() -> None:
     with pytest.raises(ControlWriteError, match="restoration write failed"):
         asyncio.run(adapter.restore_normal_operation())
     assert transport.calls == [(40210, [0, 303], 3)]
+
+
+def test_overlapping_sessions_are_rejected_and_first_session_restores() -> None:
+    async def run_test() -> None:
+        transport = FakeTransport()
+        adapter = SunnyIslandControlAdapter(
+            transport,
+            guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+        )
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        async def validate(_: float) -> None:
+            entered.set()
+            await release.wait()
+
+        session = ControlCommandSession(adapter, validate_command=validate)
+        first = asyncio.create_task(session.run(100, asyncio.Event()))
+        await entered.wait()
+        with pytest.raises(ControlWriteError, match="already active"):
+            await session.run_for(100, 0.001)
+        release.set()
+        first.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]
+
+    asyncio.run(run_test())
+
+
+def test_cancellation_restores_baseline() -> None:
+    async def run_test() -> None:
+        transport = FakeTransport()
+        adapter = SunnyIslandControlAdapter(
+            transport,
+            guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+        )
+        stop = asyncio.Event()
+        session = ControlCommandSession(adapter, interval_seconds=0.5)
+        task = asyncio.create_task(session.run(100, stop))
+        for _ in range(100):
+            if transport.calls:
+                break
+            await asyncio.sleep(0)
+        assert transport.calls
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]
+
+    asyncio.run(run_test())
