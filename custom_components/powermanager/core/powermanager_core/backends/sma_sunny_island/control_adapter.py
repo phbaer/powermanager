@@ -8,6 +8,7 @@ controller ownership check; constructing it never writes to the inverter.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -42,6 +43,14 @@ class ControlWriteGuard:
     def allowed(self) -> bool:
         """Return whether all software gates permit a write."""
         return self.enabled and self.ownership_confirmed and not self.home_manager_detected
+
+
+@dataclass(frozen=True, slots=True)
+class ControlBaseline:
+    """Operating values captured before a bounded external-control session."""
+
+    external_setpoint_mode: int
+    communication_control: int
 
 
 class SunnyIslandControlAdapter:
@@ -88,11 +97,32 @@ class SunnyIslandControlAdapter:
         """Enable or disable communication control (40151 = 802/803)."""
         await self._write_u32(40151, 802 if enabled else 803)
 
+    async def capture_baseline(self) -> ControlBaseline:
+        """Read operating values that a session must restore afterwards."""
+        return ControlBaseline(
+            external_setpoint_mode=await self._read_u32(40210),
+            communication_control=await self._read_u32(40151),
+        )
+
+    async def restore_baseline(self, baseline: ControlBaseline) -> None:
+        """Restore and read back the captured operating values.
+
+        Recovery intentionally bypasses the active-control guard: revoking control
+        ownership must never prevent the cleanup needed to stop external commands.
+        """
+        await self._write_u32(40151, baseline.communication_control, require_guard=False)
+        await self._write_u32(40210, baseline.external_setpoint_mode, require_guard=False)
+        restored_control = await self._read_u32(40151)
+        restored_mode = await self._read_u32(40210)
+        if (restored_control, restored_mode) != (
+            baseline.communication_control,
+            baseline.external_setpoint_mode,
+        ):
+            raise ControlWriteError("Sunny Island operating state did not restore")
+
     async def restore_normal_operation(self) -> None:
         """Stop external commands and return active-power mode to Off."""
-        # Disable communication first so no stale setpoint remains authoritative.
-        await self._write_u32(40151, 803)
-        await self._write_u32(40210, 303)
+        await self.restore_baseline(ControlBaseline(303, 803))
 
     async def set_power_bounds(self, minimum_percent: float, maximum_percent: float) -> None:
         """Set documented min/max active-power bounds as percent of nominal power."""
@@ -135,8 +165,8 @@ class SunnyIslandControlAdapter:
         signed = raw - 2**32 if raw & 0x80000000 else raw
         return signed / scale
 
-    async def _write_u32(self, address: int, value: int) -> None:
-        if not self._guard.allowed:
+    async def _write_u32(self, address: int, value: int, *, require_guard: bool = True) -> None:
+        if require_guard and not self._guard.allowed:
             raise ControlWriteError("active control is locked")
         if not 0 <= value <= 0xFFFFFFFF:
             raise ControlWriteError("unsigned register value is out of range")
@@ -164,29 +194,60 @@ class ControlCommandSession:
         adapter: SunnyIslandControlAdapter,
         *,
         interval_seconds: float = 0.25,
+        max_duration_seconds: float = 900,
+        validate_command: Callable[[float], Awaitable[None]] | None = None,
     ) -> None:
         if not 0 < interval_seconds <= 0.5:
             raise ValueError("heartbeat interval must be greater than 0 and at most 0.5 seconds")
+        if max_duration_seconds <= 0:
+            raise ValueError("maximum command duration must be positive")
         self._adapter = adapter
         self._interval = interval_seconds
+        self._max_duration = max_duration_seconds
+        self._validate_command = validate_command
+        self._active = False
 
     async def run(self, power_w: float, stop: asyncio.Event) -> None:
-        """Send setpoints until ``stop`` is set; propagate transport failures."""
-        while not stop.is_set():
-            await self._adapter.set_active_power(power_w)
-            try:
-                await asyncio.wait_for(stop.wait(), timeout=self._interval)
-            except TimeoutError:
-                continue
+        """Run a preflighted session until stopped, then restore the baseline."""
+        if self._active:
+            raise ControlWriteError("another control command session is already active")
+        self._active = True
+        baseline: ControlBaseline | None = None
+        primary_error: BaseException | None = None
+        try:
+            if not await self._adapter.verify_failsafe():
+                raise ControlWriteError("Sunny Island failsafe preflight did not pass")
+            baseline = await self._adapter.capture_baseline()
+            while not stop.is_set():
+                if self._validate_command is not None:
+                    await self._validate_command(power_w)
+                try:
+                    await self._adapter.set_active_power(power_w)
+                except TimeoutError as error:
+                    raise ControlWriteError("setpoint heartbeat transport timed out") from error
+                try:
+                    await asyncio.wait_for(stop.wait(), timeout=self._interval)
+                except TimeoutError:
+                    continue
+        except BaseException as error:
+            primary_error = error
+            raise
+        finally:
+            if baseline is not None:
+                try:
+                    await self._adapter.restore_baseline(baseline)
+                except Exception as restore_error:
+                    if primary_error is None:
+                        raise
+                    primary_error.add_note(f"control restoration failed: {restore_error}")
+            self._active = False
 
     async def run_for(self, power_w: float, duration_seconds: float) -> None:
         """Run a bounded command session and restore normal operation afterwards."""
-        if duration_seconds <= 0:
-            raise ValueError("command duration must be positive")
+        if not 0 < duration_seconds <= self._max_duration:
+            raise ValueError("command duration exceeds the configured safety bound")
         stop = asyncio.Event()
         try:
             await asyncio.wait_for(self.run(power_w, stop), timeout=duration_seconds)
         except TimeoutError:
-            pass
-        finally:
-            await self._adapter.restore_normal_operation()
+            return

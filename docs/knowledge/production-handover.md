@@ -130,14 +130,17 @@ and no transport writes.
   session repeatedly sends a fixed target without these checks.
 - [ ] Prevent overlapping sessions and define override/emergency-stop precedence.
   Revoked control permission must not prevent necessary recovery.
-- [ ] Separate transport timeouts from normal session expiry; run_for currently
-  catches both as TimeoutError. Eliminate unbounded production sessions.
-- [ ] Capture approved baseline settings and verify restoration. Current restore
-  writes a hardcoded mode and stops if its first write fails.
+- [x] Separate transport timeouts from normal session expiry and enforce a
+  configurable maximum session duration. Transport heartbeat timeouts now fail
+  the session rather than being treated as normal expiry.
+- [x] Capture approved baseline operating settings and verify restoration. The
+  session restores communication/mode values and reads them back; the dedicated
+  restore-normal path remains available for recovery.
 - [ ] Test partial writes, failed readback, cancellation, disconnection, restoration
   failure, clock changes, and process restart policy.
-- [ ] Separate raw write capability from the nominal read-only transport and
-  correct its misleading read-only documentation.
+- [x] Separate raw write capability from the read-only transport. The Modbus
+  client now exposes writes only through `PymodbusTcpWriteTransport`; the
+  Sunny Island monitor retains the read-only transport.
 - [ ] Add bounded, sanitized command/recovery events for diagnostics.
 
 Acceptance: fault injection demonstrates bounded sessions and explicit recovery

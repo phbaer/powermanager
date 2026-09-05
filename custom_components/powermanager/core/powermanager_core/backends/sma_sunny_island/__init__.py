@@ -2,6 +2,7 @@
 
 from .commissioning import CommissioningReport, read_commissioning_report
 from .control_adapter import (
+    ControlBaseline,
     ControlCommandSession,
     ControlWriteError,
     ControlWriteGuard,
@@ -11,6 +12,7 @@ from .device import SunnyIslandClient, SunnyIslandConnectionConfig
 
 __all__ = [
     "ControlWriteError",
+    "ControlBaseline",
     "ControlWriteGuard",
     "ControlCommandSession",
     "CommissioningReport",

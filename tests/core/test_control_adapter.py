@@ -14,10 +14,17 @@ from powermanager_core.backends.sma_sunny_island import (
 class FakeTransport:
     def __init__(self) -> None:
         self.calls: list[tuple[int, list[int], int]] = []
-        self.reads = {40210: [0, 1079], 41193: [0, 2507], 41195: [0, 300], 44037: [9, 10176]}
+        self.reads = {
+            40151: [0, 802],
+            40210: [0, 1079],
+            41193: [0, 2507],
+            41195: [0, 300],
+            44037: [9, 10176],
+        }
 
     async def write_holding_registers(self, address: int, values: list[int], unit_id: int) -> None:
         self.calls.append((address, values, unit_id))
+        self.reads[address] = values
 
     async def read_holding_registers(self, address: int, count: int, unit_id: int) -> list[int]:
         return self.reads[address]
@@ -109,4 +116,39 @@ def test_bounded_session_restores_normal_operation() -> None:
     )
     asyncio.run(ControlCommandSession(adapter, interval_seconds=0.5).run_for(100, 0.001))
     assert transport.calls[0][0] == 40149
-    assert transport.calls[-2:] == [(40151, [0, 803], 3), (40210, [0, 303], 3)]
+    assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]
+
+
+def test_session_rejects_failed_failsafe_preflight() -> None:
+    transport = FakeTransport()
+    transport.reads[41193] = [0, 2506]
+    adapter = SunnyIslandControlAdapter(
+        transport,
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+    )
+    with pytest.raises(ControlWriteError, match="preflight"):
+        asyncio.run(ControlCommandSession(adapter).run_for(100, 0.001))
+    assert transport.calls == []
+
+
+def test_session_revalidates_before_each_heartbeat() -> None:
+    transport = FakeTransport()
+    adapter = SunnyIslandControlAdapter(
+        transport,
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+    )
+    calls = 0
+
+    async def validate(_: float) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise ControlWriteError("telemetry became stale")
+
+    with pytest.raises(ControlWriteError, match="stale"):
+        asyncio.run(
+            ControlCommandSession(adapter, interval_seconds=0.001, validate_command=validate)
+            .run_for(100, 0.01)
+        )
+    assert calls == 2
+    assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]

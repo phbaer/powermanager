@@ -1,7 +1,9 @@
-"""Read-only TCP transport built on pymodbus.
+"""SMA Modbus TCP transports built on pymodbus.
 
-This module intentionally exposes no Modbus write operation. A separately reviewed
-write layer may be introduced only after physical-device safety validation.
+Read-only monitoring uses :class:`PymodbusTcpReadOnlyTransport`. The write-capable
+transport is a separate type so a monitor cannot accidentally receive a write API.
+The write transport is still a low-level primitive and must remain behind the
+reviewed command adapter and safety gates.
 """
 
 from __future__ import annotations
@@ -59,15 +61,14 @@ class PymodbusTcpReadOnlyTransport:
             raise BackendConnectionError(f"Modbus device returned an error for address {address}")
         return result.registers
 
+
+class PymodbusTcpWriteTransport(PymodbusTcpReadOnlyTransport):
+    """Write-capable transport reserved for the guarded control adapter."""
+
     async def write_holding_registers(
         self, address: int, values: list[int], unit_id: int
     ) -> None:
-        """Write registers for the separately guarded control adapter.
-
-        This low-level method is intentionally not used by the read-only
-        SunnyIslandClient. Callers must place it behind an explicit control
-        guard and ownership check.
-        """
+        """Write registers after the higher-level adapter has authorized it."""
         if self._client is None:
             raise BackendConnectionError("Modbus client is not connected")
         try:
