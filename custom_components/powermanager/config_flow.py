@@ -26,6 +26,14 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    CONF_ACTIVE_CONTROL_ENABLED,
+    CONF_ACTIVE_CONTROL_FIRMWARE_CONFIRMED,
+    CONF_ACTIVE_CONTROL_LS_RCD_CONFIRMED,
+    CONF_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+    CONF_ACTIVE_CONTROL_MAX_POWER_W,
+    CONF_ACTIVE_CONTROL_SCHEDULED,
+    CONF_ACTIVE_CONTROL_SINGLE_PHASE_CONFIRMED,
+    CONF_ACTIVE_CONTROL_TELEMETRY_SOURCES,
     CONF_CONTROL_OWNERSHIP_CONFIRMED,
     CONF_ESTIMATE_REMAINING_LOAD,
     CONF_GRID_EXPORT_POWER_ENTITY,
@@ -52,6 +60,8 @@ from .const import (
     CONF_STATIC_PRICE_PER_KWH,
     CONF_TELEMETRY_MAX_AGE,
     CONF_UNIT_ID,
+    DEFAULT_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+    DEFAULT_ACTIVE_CONTROL_MAX_POWER_W,
     DEFAULT_LOAD_FORECAST_HISTORY_DAYS,
     DEFAULT_PORT,
     DEFAULT_PREDICTIVE_CAPACITY_KWH,
@@ -63,9 +73,13 @@ from .const import (
     DEFAULT_TELEMETRY_MAX_AGE_SECONDS,
     DEFAULT_UNIT_ID,
     DOMAIN,
+    MAX_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+    MAX_ACTIVE_CONTROL_MAX_POWER_W,
     MAX_LOAD_FORECAST_HISTORY_DAYS,
     MAX_SCAN_INTERVAL_SECONDS,
     MAX_TELEMETRY_MAX_AGE_SECONDS,
+    MIN_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+    MIN_ACTIVE_CONTROL_MAX_POWER_W,
     MIN_LOAD_FORECAST_HISTORY_DAYS,
     MIN_SCAN_INTERVAL_SECONDS,
     MIN_TELEMETRY_MAX_AGE_SECONDS,
@@ -182,6 +196,11 @@ class PowerManagerOptionsFlow(OptionsFlow):
             predictive_end = user_input.get(
                 CONF_PREDICTIVE_END_SOC_PERCENT, DEFAULT_PREDICTIVE_END_SOC_PERCENT
             )
+            active_enabled = bool(user_input.get(CONF_ACTIVE_CONTROL_ENABLED, False))
+            active_scheduled = bool(user_input.get(CONF_ACTIVE_CONTROL_SCHEDULED, False))
+            telemetry_sources = _parse_telemetry_sources(
+                user_input.get(CONF_ACTIVE_CONTROL_TELEMETRY_SOURCES)
+            )
             rules_yaml = user_input.get(CONF_RULES_YAML)
             inverters_yaml = user_input.get(CONF_INVERTERS)
             profile_count = int(user_input.get(CONF_INVERTER_PROFILE_COUNT, 0) or 0)
@@ -222,6 +241,27 @@ class PowerManagerOptionsFlow(OptionsFlow):
                         errors["base"] = "invalid_static_price"
             if not errors and float(predictive_reserve) > float(predictive_end):
                 errors["base"] = "invalid_predictive_targets"
+            if not errors and active_scheduled and not active_enabled:
+                errors["base"] = "scheduled_control_requires_enablement"
+            if not errors and active_enabled and not all(
+                bool(user_input.get(key, False))
+                for key in (
+                    CONF_CONTROL_OWNERSHIP_CONFIRMED,
+                    CONF_ACTIVE_CONTROL_SINGLE_PHASE_CONFIRMED,
+                    CONF_ACTIVE_CONTROL_FIRMWARE_CONFIRMED,
+                    CONF_ACTIVE_CONTROL_LS_RCD_CONFIRMED,
+                )
+            ):
+                errors["base"] = "active_control_confirmations_required"
+            if not errors and user_input.get(CONF_ACTIVE_CONTROL_TELEMETRY_SOURCES):
+                if not telemetry_sources or any(
+                    not _valid_ipv4_or_hostname(source) for source in telemetry_sources
+                ):
+                    errors["base"] = "invalid_telemetry_sources"
+            if not errors:
+                user_input[CONF_ACTIVE_CONTROL_TELEMETRY_SOURCES] = ",".join(
+                    telemetry_sources
+                )
             has_manual_grid = bool(
                 grid_power_entity or (grid_import_power_entity and grid_export_power_entity)
             )
@@ -324,6 +364,51 @@ class PowerManagerOptionsFlow(OptionsFlow):
                         CONF_CONTROL_OWNERSHIP_CONFIRMED, False
                     ),
                 ): _BOOLEAN_SELECTOR,
+                vol.Optional(
+                    CONF_ACTIVE_CONTROL_ENABLED,
+                    default=self._config_entry.options.get(CONF_ACTIVE_CONTROL_ENABLED, False),
+                ): _BOOLEAN_SELECTOR,
+                vol.Optional(
+                    CONF_ACTIVE_CONTROL_SCHEDULED,
+                    default=self._config_entry.options.get(CONF_ACTIVE_CONTROL_SCHEDULED, False),
+                ): _BOOLEAN_SELECTOR,
+                vol.Optional(
+                    CONF_ACTIVE_CONTROL_SINGLE_PHASE_CONFIRMED,
+                    default=self._config_entry.options.get(
+                        CONF_ACTIVE_CONTROL_SINGLE_PHASE_CONFIRMED, False
+                    ),
+                ): _BOOLEAN_SELECTOR,
+                vol.Optional(
+                    CONF_ACTIVE_CONTROL_FIRMWARE_CONFIRMED,
+                    default=self._config_entry.options.get(
+                        CONF_ACTIVE_CONTROL_FIRMWARE_CONFIRMED, False
+                    ),
+                ): _BOOLEAN_SELECTOR,
+                vol.Optional(
+                    CONF_ACTIVE_CONTROL_LS_RCD_CONFIRMED,
+                    default=self._config_entry.options.get(
+                        CONF_ACTIVE_CONTROL_LS_RCD_CONFIRMED, False
+                    ),
+                ): _BOOLEAN_SELECTOR,
+                vol.Optional(
+                    CONF_ACTIVE_CONTROL_TELEMETRY_SOURCES,
+                    default=self._config_entry.options.get(
+                        CONF_ACTIVE_CONTROL_TELEMETRY_SOURCES, ""
+                    ),
+                ): _TELEMETRY_SOURCES_SELECTOR,
+                vol.Optional(
+                    CONF_ACTIVE_CONTROL_MAX_POWER_W,
+                    default=self._option_number_or(
+                        CONF_ACTIVE_CONTROL_MAX_POWER_W, DEFAULT_ACTIVE_CONTROL_MAX_POWER_W
+                    ),
+                ): _ACTIVE_POWER_SELECTOR,
+                vol.Optional(
+                    CONF_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+                    default=self._config_entry.options.get(
+                        CONF_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+                        DEFAULT_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+                    ),
+                ): _ACTIVE_DURATION_SELECTOR,
                 vol.Required(
                     CONF_LOAD_FORECAST_HISTORY_DAYS,
                     default=self._config_entry.options.get(
@@ -530,6 +615,9 @@ _STATIC_PRICE_SELECTOR = NumberSelector(
     NumberSelectorConfig(min=0, step=0.001, mode=NumberSelectorMode.BOX)
 )
 _BOOLEAN_SELECTOR = BooleanSelector(BooleanSelectorConfig())
+_TELEMETRY_SOURCES_SELECTOR = TextSelector(
+    TextSelectorConfig(multiline=False)
+)
 _LOAD_FORECAST_DAYS_SELECTOR = NumberSelector(
     NumberSelectorConfig(
         min=MIN_LOAD_FORECAST_HISTORY_DAYS,
@@ -564,3 +652,35 @@ _PREDICTIVE_SOC_SELECTOR = NumberSelector(
 _PREDICTIVE_POWER_SELECTOR = NumberSelector(
     NumberSelectorConfig(min=0, max=100000, step=1, mode=NumberSelectorMode.BOX)
 )
+_ACTIVE_POWER_SELECTOR = NumberSelector(
+    NumberSelectorConfig(
+        min=MIN_ACTIVE_CONTROL_MAX_POWER_W,
+        max=MAX_ACTIVE_CONTROL_MAX_POWER_W,
+        step=100,
+        mode=NumberSelectorMode.BOX,
+    )
+)
+_ACTIVE_DURATION_SELECTOR = NumberSelector(
+    NumberSelectorConfig(
+        min=MIN_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+        max=MAX_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+        step=1,
+        mode=NumberSelectorMode.BOX,
+    )
+)
+
+
+def _parse_telemetry_sources(value: Any) -> tuple[str, ...]:
+    """Normalize the explicit list of reporting-only Speedwire senders."""
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return tuple(dict.fromkeys(item.strip() for item in value.split(",") if item.strip()))
+    return ()
+
+
+def _valid_ipv4_or_hostname(value: str) -> bool:
+    """Accept a conservative host token without pretending to resolve it."""
+    return bool(value) and all(
+        character.isalnum() or character in ".-_" for character in value
+    )

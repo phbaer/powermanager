@@ -41,3 +41,15 @@ def test_hostname_addresses_are_excluded_but_competing_sender_stays_latched() ->
     monitor.observe(SpeedwireFrame(b"frame", ("10.0.1.240", 9522), later))
     assert monitor.possible_external_controller
     assert not monitor.ownership_eligible(confirmed=True, at=later)
+
+
+def test_explicit_telemetry_only_sender_does_not_block_ownership() -> None:
+    now = datetime.now(UTC)
+    monitor = ExternalControllerMonitor("10.0.1.240")
+    monitor.listening = True
+    monitor.observe(SpeedwireFrame(b"pv", ("10.0.1.225", 9522), now))
+    assert monitor.possible_external_controller
+    assert not monitor.ownership_eligible(confirmed=True, at=now)
+    assert monitor.ownership_eligible(
+        confirmed=True, at=now, telemetry_only_sources={"10.0.1.225"}
+    )

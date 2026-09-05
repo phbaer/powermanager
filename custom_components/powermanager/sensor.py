@@ -234,6 +234,19 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
         value_fn=lambda coordinator: coordinator.data.control_block_reason,
     ),
     PowerManagerSensorDescription(
+        key="active_control_power",
+        translation_key="active_control_power",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement="W",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: coordinator.active_control_power_w,
+    ),
+    PowerManagerSensorDescription(
+        key="active_control_last_error",
+        translation_key="active_control_last_error",
+        value_fn=lambda coordinator: coordinator.active_control_last_error or "none",
+    ),
+    PowerManagerSensorDescription(
         key="speedwire_source_count",
         translation_key="speedwire_source_count",
         value_fn=lambda coordinator: len(coordinator.data.speedwire_sources),

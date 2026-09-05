@@ -8,9 +8,10 @@ status: draft
 
 # Production readiness handover — 2026-09-05
 
-PowerManager remains a monitor-only prototype. Physical commissioning is not the
-only blocker: installation, safety validation, command recovery, and simulation
-consistency need work. This checklist supersedes older remaining-work lists in
+PowerManager remains monitor-only by default. The HA command path is now present
+behind explicit commissioning gates, but no live operation is authorized by this
+document. Physical commissioning, supervised failure testing, and operator
+authorization remain required. This checklist supersedes older remaining-work lists in
 the original handover. It does not authorize inverter writes or parameter changes.
 
 ## Evidence and completed follow-up
@@ -56,7 +57,9 @@ Completed passive detection improvements:
   traffic is unknown. Traffic expires after 120 seconds, checked during five-second
   receive timeouts. Future timestamps are stale.
 - Eligibility requires explicit confirmation, a running listener, fresh traffic,
-  and no observed non-inverter sender. It cannot authorize hardware control.
+  and no observed unknown sender. A manually entered list can classify verified
+  reporting-only senders (such as a PV inverter) for telemetry; it does not
+  identify a controller or suppress the warning.
 - Listener/DNS socket failures clear eligibility and retry after 30 seconds.
   Recovery requires new traffic before reporting online.
 - IPv4 hostname resolution excludes the inverter's resolved addresses.
@@ -281,19 +284,31 @@ spoof, suppress, or firewall Home Manager traffic as a control strategy.
 
 ### 7. Expose opt-in manual control, then scheduled charging
 
-The integration now exposes an explicit `monitor_only` mode, an unavailable
-active-control status, and a block reason. This is status only; there is still no
-HA enable switch, write service, or coordinator path to the command adapter.
+The integration now exposes an explicit `monitor_only` mode, an active-control
+status and block reason, and two HA services. `powermanager.start_control` is a
+bounded, explicit action; `powermanager.stop_control` stops the heartbeat and
+restores the captured state. Both services reject calls unless every software
+and commissioning gate passes. Fresh installs, reloads, and restarts remain
+monitor-only and do not resume a prior command.
 
-- [ ] Connect the reviewed runtime only after stages 1–6 pass.
-- [ ] Add explicit HA enablement, modes, power/reserve limits, ownership
-  confirmation, restore-normal action, and emergency stop.
-- [ ] Default fresh installs and uncertain restart states to monitor-only; prevent
-  old commands resuming automatically. Test disable, reload, and unload.
+- [x] Add explicit HA enablement, power/reserve limits, ownership confirmation,
+  firmware/topology confirmations, and a supervised LS/RCD isolation acknowledgement.
+- [x] Keep the existing Sunny Island external-setpoint, fallback, timeout, and
+  power-bound configuration unchanged. The active path only reads those settings
+  during preflight; it never calls the configuration setters automatically.
+- [x] Default fresh installs and uncertain restart states to monitor-only; prevent
+  old commands resuming automatically. Unload stops the heartbeat and closes the
+  write transport.
+- [x] Revalidate ownership, telemetry freshness, battery operating state, SoC
+  reserve, and power bounds before every heartbeat. Home Manager traffic or an
+  unknown Speedwire sender blocks the session immediately.
+- [ ] Complete supervised manual operation and failure-mode tests before setting
+  the active-control enable option. The only physical isolation available here is
+  the LS/RCD procedure; it must be rehearsed by the operator.
 - [ ] Distinguish normal operation, zero active-power target, and charge inhibition.
   target_power_w: 0 does not establish “prevent charging while allowing discharge.”
   Keep the example intent simulation-only until verified.
-- [ ] Validate supervised manual operation before scheduled delayed charging.
+- [ ] Enable scheduled delayed charging only after bounded manual operation passes.
 
 Acceptance: manual actions are bounded/recoverable and schedules cannot bypass
 their safety boundaries.

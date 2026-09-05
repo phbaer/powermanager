@@ -82,15 +82,18 @@ control and remains subordinate to `control.safety`.
 - No write is possible when control is disabled or telemetry is stale.
 - Every command has a bounded duration and a fallback target.
 - A watchdog restores normal inverter behavior after missed heartbeats.
-- Manual override and emergency stop always supersede rules.
+- Manual stop supersedes rules. Where no dedicated emergency stop exists, the
+  operator's documented LS/RCD isolation procedure remains the physical boundary.
 - Production execution requires hardware-specific register verification.
 
 The adapter, heartbeat, restore-normal operation, and read-only preflight exist.
 The core now has per-source freshness and operating-limit validation, consistent
 HA simulation, continuous session validation callbacks, bounded sessions, and
-verified baseline restoration after failures. The adapter remains disconnected
-from the Home Assistant coordinator and all HA control status remains
-`monitor_only`.
+verified baseline restoration after failures. Home Assistant exposes a bounded
+manual command service and an optional scheduled path, but both remain locked
+behind explicit commissioning gates and are disabled by default. The HA path
+reads the configured external-setpoint/fallback settings and does not rewrite
+them.
 
 Session timing uses a monotonic deadline and session state is not persisted, so
 restarts never resume a prior command. Recovery after a restart remains an

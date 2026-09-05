@@ -2,14 +2,55 @@
 
 from __future__ import annotations
 
+import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import HomeAssistantError
 
 from .const import DOMAIN
 from .coordinator import PowerManagerCoordinator
+from .core.powermanager_core.backends.sma_sunny_island import ControlWriteError
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
+
+
+async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
+    """Register explicit, bounded control services without opening a device."""
+
+    async def start_control(call: ServiceCall) -> None:
+        coordinators = list(hass.data.get(DOMAIN, {}).values())
+        if len(coordinators) != 1:
+            raise HomeAssistantError("PowerManager must have exactly one configured entry")
+        coordinator: PowerManagerCoordinator = coordinators[0]
+        try:
+            await coordinator.start_active_control(
+                float(call.data["power_w"]), int(call.data["duration_seconds"])
+            )
+        except ControlWriteError as error:
+            raise HomeAssistantError(str(error)) from error
+
+    async def stop_control(_call: ServiceCall) -> None:
+        coordinators = list(hass.data.get(DOMAIN, {}).values())
+        if len(coordinators) != 1:
+            raise HomeAssistantError("PowerManager must have exactly one configured entry")
+        await coordinators[0].stop_active_control()
+
+    hass.services.async_register(
+        DOMAIN,
+        "start_control",
+        start_control,
+        schema=vol.Schema(
+            {
+                vol.Required("power_w"): vol.Coerce(float),
+                vol.Optional("duration_seconds", default=300): vol.All(
+                    vol.Coerce(int), vol.Range(min=1, max=900)
+                ),
+            }
+        ),
+    )
+    hass.services.async_register(DOMAIN, "stop_control", stop_control)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

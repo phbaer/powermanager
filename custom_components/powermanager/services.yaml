@@ -1,0 +1,31 @@
+start_control:
+  name: Start bounded control
+  description: Start an explicitly requested, bounded Sunny Island setpoint session.
+  fields:
+    power_w:
+      name: Battery power
+      description: PowerManager convention: positive charges and negative discharges.
+      required: true
+      selector:
+        number:
+          min: -10000
+          max: 10000
+          step: 100
+          mode: box
+          unit_of_measurement: W
+    duration_seconds:
+      name: Duration
+      description: Maximum session duration. The inverter's existing timeout remains unchanged.
+      required: false
+      default: 300
+      selector:
+        number:
+          min: 1
+          max: 900
+          step: 1
+          mode: box
+          unit_of_measurement: s
+
+stop_control:
+  name: Stop control
+  description: Stop the heartbeat and restore the captured Sunny Island operating state.

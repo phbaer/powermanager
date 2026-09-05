@@ -10,9 +10,17 @@ from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.powermanager import PLATFORMS, async_setup_entry, async_unload_entry
+from custom_components.powermanager import (
+    PLATFORMS,
+    async_setup,
+    async_setup_entry,
+    async_unload_entry,
+)
 from custom_components.powermanager.config_flow import PowerManagerOptionsFlow
 from custom_components.powermanager.const import DOMAIN
+from custom_components.powermanager.core.powermanager_core.backends.sma_sunny_island import (
+    ControlWriteError,
+)
 from custom_components.powermanager.core.powermanager_core.inverters import parse_inverter_sources
 from custom_components.powermanager.core.powermanager_core.models import (
     BatteryState,
@@ -82,6 +90,42 @@ async def test_options_flow_validates_price_conflict_with_valid_rules() -> None:
 
     assert response == {"errors": {}}
     assert show_form.call_args.kwargs["errors"] == {"base": "price_source_conflict"}
+
+
+async def test_options_flow_requires_all_confirmations_before_active_enablement() -> None:
+    """The write path cannot be enabled by checking only ownership."""
+    flow = PowerManagerOptionsFlow(Mock(options={}))
+    result = await flow.async_step_init()
+    data = result["data_schema"](
+        {
+            "scan_interval": 30,
+            "telemetry_max_age": 120,
+            "active_control_enabled": True,
+            "control_ownership_confirmed": True,
+        }
+    )
+    with patch.object(flow, "async_show_form", return_value={"errors": {}}) as show_form:
+        await flow.async_step_init(data)
+    assert show_form.call_args.kwargs["errors"] == {
+        "base": "active_control_confirmations_required"
+    }
+
+
+async def test_control_services_are_explicit_and_locked_by_default(hass) -> None:
+    """Registering services never bypasses the coordinator's safety gates."""
+    await async_setup(hass, {})
+    coordinator = Mock()
+    coordinator.start_active_control = AsyncMock(
+        side_effect=ControlWriteError("active control is disabled")
+    )
+    hass.data.setdefault(DOMAIN, {})["test"] = coordinator
+    with pytest.raises(Exception, match="active control is disabled"):
+        await hass.services.async_call(
+            DOMAIN,
+            "start_control",
+            {"power_w": 500, "duration_seconds": 30},
+            blocking=True,
+        )
 
 
 async def test_options_flow_rejects_invalid_inverter_sources() -> None:

@@ -66,7 +66,18 @@ The integration exposes the current control mode as `monitor_only`, reports that
 active control is unavailable, and includes the block reason in diagnostics. It
 also reads the Sunny Island serial number and packed firmware identity for stable
 device metadata. These indicators do not authorize control; supervised hardware
-commissioning is still required before any command adapter can be connected.
+commissioning is still required before any command adapter can be used.
+
+The integration includes explicit `powermanager.start_control` and
+`powermanager.stop_control` services for a bounded manual session. They remain
+locked unless the operator enables active control and confirms the single-phase
+topology, firmware/fallback behavior, sole ownership, and the LS/RCD isolation
+procedure. Every heartbeat rechecks fresh telemetry, SoC reserve, operating
+state, ownership, and configured power bounds. Existing Sunny Island external
+setpoint, fallback, timeout, and power-bound settings are read during preflight
+and never rewritten by PowerManager. A restart or unload cannot resume a prior
+session. Scheduled rules are a separate opt-in and must follow supervised manual
+testing. No live command has been sent from this repository deployment.
 
 The disconnected command-session adapter keeps a bounded, sanitized event buffer
 for future diagnostics and verifies baseline restoration after each bounded test

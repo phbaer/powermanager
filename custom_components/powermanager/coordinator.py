@@ -17,6 +17,14 @@ from homeassistant.helpers.issue_registry import IssueSeverity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    CONF_ACTIVE_CONTROL_ENABLED,
+    CONF_ACTIVE_CONTROL_FIRMWARE_CONFIRMED,
+    CONF_ACTIVE_CONTROL_LS_RCD_CONFIRMED,
+    CONF_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+    CONF_ACTIVE_CONTROL_MAX_POWER_W,
+    CONF_ACTIVE_CONTROL_SCHEDULED,
+    CONF_ACTIVE_CONTROL_SINGLE_PHASE_CONFIRMED,
+    CONF_ACTIVE_CONTROL_TELEMETRY_SOURCES,
     CONF_CONTROL_OWNERSHIP_CONFIRMED,
     CONF_ESTIMATE_REMAINING_LOAD,
     CONF_GRID_EXPORT_POWER_ENTITY,
@@ -42,6 +50,8 @@ from .const import (
     CONF_STATIC_PRICE_PER_KWH,
     CONF_TELEMETRY_MAX_AGE,
     CONF_UNIT_ID,
+    DEFAULT_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+    DEFAULT_ACTIVE_CONTROL_MAX_POWER_W,
     DEFAULT_PREDICTIVE_CAPACITY_KWH,
     DEFAULT_PREDICTIVE_END_SOC_PERCENT,
     DEFAULT_PREDICTIVE_EXPORT_CAPACITY_KWH,
@@ -50,16 +60,24 @@ from .const import (
     DEFAULT_SCAN_INTERVAL_SECONDS,
     DEFAULT_TELEMETRY_MAX_AGE_SECONDS,
     DOMAIN,
+    MAX_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+    MAX_ACTIVE_CONTROL_MAX_POWER_W,
     MAX_SCAN_INTERVAL_SECONDS,
+    MIN_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
 )
 from .core.powermanager_core.backends.sma_speedwire import (
     ExternalControllerMonitor,
     SpeedwireListener,
 )
 from .core.powermanager_core.backends.sma_sunny_island import (
+    ControlCommandSession,
+    ControlWriteError,
+    ControlWriteGuard,
     SunnyIslandClient,
     SunnyIslandConnectionConfig,
+    SunnyIslandControlAdapter,
 )
+from .core.powermanager_core.control.policy import ControlIntent
 from .core.powermanager_core.control.predictive import (
     PredictiveInputs,
     PredictivePlan,
@@ -68,9 +86,11 @@ from .core.powermanager_core.control.predictive import (
 )
 from .core.powermanager_core.control.rules import parse_rules_document
 from .core.powermanager_core.control.runtime import ControlRuntime
+from .core.powermanager_core.control.safety import SafetyConfig, validate_intent
 from .core.powermanager_core.control.watchdog import ControlWatchdog
 from .core.powermanager_core.exceptions import PowerManagerError, UnsupportedDeviceError
 from .core.powermanager_core.inverters import InverterSourceConfig, parse_inverter_sources
+from .core.powermanager_core.modbus.client import PymodbusTcpWriteTransport
 from .core.powermanager_core.models import (
     BatteryState,
     CommunicationState,
@@ -190,6 +210,51 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         self._control_ownership_confirmed = entry.options.get(
             CONF_CONTROL_OWNERSHIP_CONFIRMED, False
         )
+        self._active_control_enabled = bool(
+            entry.options.get(CONF_ACTIVE_CONTROL_ENABLED, False)
+        )
+        self._active_control_scheduled = bool(
+            entry.options.get(CONF_ACTIVE_CONTROL_SCHEDULED, False)
+        )
+        self._active_control_single_phase_confirmed = bool(
+            entry.options.get(CONF_ACTIVE_CONTROL_SINGLE_PHASE_CONFIRMED, False)
+        )
+        self._active_control_firmware_confirmed = bool(
+            entry.options.get(CONF_ACTIVE_CONTROL_FIRMWARE_CONFIRMED, False)
+        )
+        self._active_control_ls_rcd_confirmed = bool(
+            entry.options.get(CONF_ACTIVE_CONTROL_LS_RCD_CONFIRMED, False)
+        )
+        self._active_control_telemetry_sources = _parse_host_list(
+            entry.options.get(CONF_ACTIVE_CONTROL_TELEMETRY_SOURCES)
+        )
+        self._active_control_max_power_w = min(
+            max(
+                float(
+                    entry.options.get(
+                        CONF_ACTIVE_CONTROL_MAX_POWER_W, DEFAULT_ACTIVE_CONTROL_MAX_POWER_W
+                    )
+                ),
+                100.0,
+            ),
+            MAX_ACTIVE_CONTROL_MAX_POWER_W,
+        )
+        self._active_control_max_duration_seconds = min(
+            max(
+                int(
+                    entry.options.get(
+                        CONF_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+                        DEFAULT_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+                    )
+                ),
+                MIN_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+            ),
+            MAX_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
+        )
+        self._active_control_task: asyncio.Task[None] | None = None
+        self._active_control_stop: asyncio.Event | None = None
+        self._active_control_power_w: float | None = None
+        self._active_control_last_error: str | None = None
         rules_yaml = entry.options.get(CONF_RULES_YAML)
         self._rules = parse_rules_document(yaml.safe_load(rules_yaml)) if rules_yaml else ()
         self._timezone = _ha_timezone(hass)
@@ -237,10 +302,167 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
 
     async def stop_speedwire_monitor(self) -> None:
         """Stop passive multicast observation during unload."""
+        await self.stop_active_control()
         if self._speedwire_task is not None:
             self._speedwire_task.cancel()
             await asyncio.gather(self._speedwire_task, return_exceptions=True)
             self._speedwire_task = None
+
+    @property
+    def active_control_running(self) -> bool:
+        """Return whether a bounded command session is currently running."""
+        return self._active_control_task is not None and not self._active_control_task.done()
+
+    @property
+    def active_control_power_w(self) -> float | None:
+        """Return the domain-power target of the current session."""
+        return self._active_control_power_w
+
+    @property
+    def active_control_last_error(self) -> str | None:
+        """Return the last bounded-session error for diagnostics."""
+        return self._active_control_last_error
+
+    async def start_active_control(self, power_w: float, duration_seconds: int) -> None:
+        """Start one explicit, bounded command session.
+
+        ``power_w`` uses PowerManager's domain convention: positive charges the
+        battery and negative discharges it.  The SMA register uses the inverse
+        sign, so conversion is kept at this single adapter boundary.
+        """
+        if self.data is None:
+            raise ControlWriteError("fresh Sunny Island telemetry is required")
+        reason = self._active_control_block_reason(self.data)
+        if reason is not None:
+            raise ControlWriteError(reason)
+        if not -self._active_control_max_power_w <= power_w <= self._active_control_max_power_w:
+            raise ControlWriteError("requested power exceeds configured active-control bound")
+        if not 1 <= duration_seconds <= self._active_control_max_duration_seconds:
+            raise ControlWriteError("requested duration exceeds configured active-control bound")
+        if self.active_control_running:
+            raise ControlWriteError("another active-control session is already running")
+        await self._validate_active_command(power_w)
+        stop = asyncio.Event()
+        self._active_control_stop = stop
+        self._active_control_power_w = power_w
+        self._active_control_last_error = None
+        self._active_control_task = asyncio.create_task(
+            self._run_active_control(power_w, duration_seconds, stop)
+        )
+        self._active_control_task.add_done_callback(self._active_control_done)
+        self._publish_control_status()
+
+    async def stop_active_control(self) -> None:
+        """Stop the heartbeat and wait for its baseline restoration."""
+        task = self._active_control_task
+        if task is None:
+            return
+        if self._active_control_stop is not None:
+            self._active_control_stop.set()
+        await asyncio.gather(task, return_exceptions=True)
+        self._active_control_task = None
+        self._active_control_stop = None
+        self._active_control_power_w = None
+        self._publish_control_status()
+
+    async def _run_active_control(
+        self, power_w: float, duration_seconds: int, stop: asyncio.Event
+    ) -> None:
+        transport = PymodbusTcpWriteTransport(
+            self._config.host,
+            self._config.port,
+            self._config.unit_id,
+            self._config.timeout_seconds,
+        )
+        adapter = SunnyIslandControlAdapter(
+            transport,
+            unit_id=self._config.unit_id,
+            max_power_w=self._active_control_max_power_w,
+            guard=ControlWriteGuard(
+                enabled=True,
+                ownership_confirmed=True,
+                home_manager_detected=False,
+            ),
+        )
+        try:
+            await transport.connect()
+            session = ControlCommandSession(
+                adapter,
+                max_duration_seconds=duration_seconds,
+                validate_command=lambda _sma_power: self._validate_active_command(power_w),
+            )
+            await session.run_for(-power_w, duration_seconds)
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            self._active_control_last_error = str(error)
+            _LOGGER.error("Active-control session stopped: %s", error)
+        finally:
+            await transport.close()
+            self._active_control_power_w = None
+            self._publish_control_status()
+
+    def _active_control_done(self, task: asyncio.Task[None]) -> None:
+        """Consume task exceptions; service failures remain visible in status."""
+        if task.cancelled():
+            return
+        try:
+            task.exception()
+        except Exception as error:  # pragma: no cover - defensive callback guard
+            self._active_control_last_error = str(error)
+        self._publish_control_status()
+
+    async def _validate_active_command(self, power_w: float) -> None:
+        """Re-check ownership, freshness, operating state, and SoC per heartbeat."""
+        data = self.data
+        if data is None:
+            raise ControlWriteError("fresh Sunny Island telemetry is required")
+        reason = self._active_control_block_reason(data)
+        if reason is not None:
+            raise ControlWriteError(reason)
+        intent = ControlIntent("active-control", power_w, 0, datetime.now(UTC))
+        valid, validation_reason = validate_intent(
+            intent,
+            data.energy_state,
+            SafetyConfig(
+                max_charge_power_w=self._active_control_max_power_w,
+                max_discharge_power_w=self._active_control_max_power_w,
+                minimum_soc_percent=self._predictive_reserve_soc_percent,
+                max_energy_age_seconds=self._config_max_age,
+            ),
+            enabled=True,
+            at=datetime.now(UTC),
+        )
+        if not valid:
+            raise ControlWriteError(validation_reason or "active-control safety validation failed")
+
+    def _active_control_block_reason(self, data: PowerManagerData | None) -> str | None:
+        """Return the first failed commissioning or runtime control gate."""
+        if not self._active_control_enabled:
+            return "active control is disabled"
+        if not self._control_ownership_confirmed:
+            return "PowerManager control ownership is not confirmed"
+        if not self._active_control_single_phase_confirmed:
+            return "single-phase topology is not confirmed"
+        if not self._active_control_firmware_confirmed:
+            return "firmware behavior is not confirmed"
+        if not self._active_control_ls_rcd_confirmed:
+            return "LS/RCD isolation procedure is not confirmed"
+        if data is None:
+            return "fresh Sunny Island telemetry is required"
+        if not data.control_ownership_clear:
+            return "Speedwire ownership is not clear"
+        if data.battery_state.communication_state is not CommunicationState.ONLINE:
+            return "battery telemetry is not online"
+        if data.device_info.firmware_version is None:
+            return "Sunny Island firmware identity is unavailable"
+        return None
+
+    def _publish_control_status(self) -> None:
+        """Refresh status entities after a session lifecycle transition."""
+        if self.data is not None:
+            self.data = self._with_observation(self.data)
+            self.async_update_listeners()
 
     async def _observe_speedwire(self) -> None:
         """Observe passively, retry failures, and expire health during silence."""
@@ -285,15 +507,24 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         """Use one authoritative snapshot for polls and passive updates."""
         monitor = self._speedwire_monitor
         now = datetime.now(UTC)
-        return replace(
+        observed = replace(
             data,
             possible_external_controller=monitor.possible_external_controller,
             speedwire_sources=tuple(sorted(monitor.observed_sources)),
             speedwire_external_sources=monitor.external_sources,
             speedwire_observation_state=monitor.observation_state(now),
             control_ownership_clear=monitor.ownership_eligible(
-                confirmed=self._control_ownership_confirmed, at=now,
+                confirmed=self._control_ownership_confirmed,
+                at=now,
+                telemetry_only_sources=self._active_control_telemetry_sources,
             ),
+        )
+        block_reason = self._active_control_block_reason(observed)
+        return replace(
+            observed,
+            control_mode="active_control" if block_reason is None else "monitor_only",
+            active_control_available=block_reason is None,
+            control_block_reason=block_reason or "active control ready",
         )
 
     def _publish_observation(self) -> None:
@@ -384,7 +615,7 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         )
         intent = decision.intent
         predictive_plan = self._predictive_plan(battery_state, forecast_state)
-        return self._with_observation(PowerManagerData(
+        result = self._with_observation(PowerManagerData(
             device_info=device_info,
             battery_state=battery_state,
             energy_state=energy_state,
@@ -414,6 +645,32 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             energy_dashboard_summary=dashboard_runtime.configuration.summary,
             energy_dashboard_missing=dashboard_runtime.configuration.missing,
         ))
+        if self._active_control_scheduled:
+            await self._reconcile_scheduled_control(result, decision)
+        return result
+
+    async def _reconcile_scheduled_control(
+        self, data: PowerManagerData, decision
+    ) -> None:
+        """Run rules through the same bounded session used by manual control."""
+        if self.data is None:
+            return
+        if not data.active_control_available or not decision.accepted or decision.intent is None:
+            await self.stop_active_control()
+            return
+        target = decision.intent.target_power_w
+        if self.active_control_running and self._active_control_power_w == target:
+            return
+        await self.stop_active_control()
+        duration = max(
+            1,
+            min(decision.intent.hold_seconds or 1, self._active_control_max_duration_seconds),
+        )
+        try:
+            await self.start_active_control(target, duration)
+        except ControlWriteError as error:
+            self._active_control_last_error = str(error)
+            _LOGGER.warning("Scheduled active-control command blocked: %s", error)
 
     @property
     def _config_max_age(self) -> int:
@@ -609,3 +866,10 @@ def _next_local_midnight(at: datetime, timezone) -> datetime:
     local = at.astimezone(timezone) if timezone is not None else at
     next_day = local.date() + timedelta(days=1)
     return datetime.combine(next_day, time.min, tzinfo=local.tzinfo)
+
+
+def _parse_host_list(value: object) -> set[str]:
+    """Parse the explicit comma-separated list of reporting-only senders."""
+    if not isinstance(value, str):
+        return set()
+    return {item.strip() for item in value.split(",") if item.strip()}

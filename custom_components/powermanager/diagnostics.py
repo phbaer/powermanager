@@ -47,4 +47,7 @@ async def async_get_config_entry_diagnostics(
         "control_mode": data.control_mode,
         "active_control_available": data.active_control_available,
         "control_block_reason": data.control_block_reason,
+        "active_control_running": getattr(coordinator, "active_control_running", False),
+        "active_control_power_w": getattr(coordinator, "active_control_power_w", None),
+        "active_control_last_error": getattr(coordinator, "active_control_last_error", None),
     }

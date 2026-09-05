@@ -16,6 +16,7 @@ class ExternalControllerMonitor:
     sunny_island_host: str
     observed_sources: set[str] = field(default_factory=set)
     inverter_addresses: set[str] = field(default_factory=set)
+    telemetry_only_sources: set[str] = field(default_factory=set)
     listening: bool = False
     last_received_at: datetime | None = None
     max_age_seconds: int = 120
@@ -42,16 +43,27 @@ class ExternalControllerMonitor:
             return CommunicationState.STALE
         return CommunicationState.ONLINE
 
-    def ownership_eligible(self, *, confirmed: bool, at: datetime) -> bool:
+    def ownership_eligible(
+        self,
+        *,
+        confirmed: bool,
+        at: datetime,
+        telemetry_only_sources: set[str] | None = None,
+    ) -> bool:
         """Require confirmation and fresh observation; silence proves nothing.
 
         This is only an indicator, never authorization to control hardware.
         Possible competing senders remain latched for the monitor's lifetime.
         """
+        allowed_telemetry = (
+            self.telemetry_only_sources
+            if telemetry_only_sources is None
+            else telemetry_only_sources
+        )
         return (
             confirmed
             and self.observation_state(at) is CommunicationState.ONLINE
-            and not self.possible_external_controller
+            and not (set(self.external_sources) - allowed_telemetry)
         )
 
     @property
