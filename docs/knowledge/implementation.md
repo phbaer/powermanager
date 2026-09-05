@@ -40,8 +40,9 @@ reports its decision reason, hold state, and watchdog restoration status.
 
 The reusable predictive planner calculates forecast-adjusted surplus, required
 energy, battery headroom, and bounded optional grid charging without side
-effects. `replay_predictive_plans` provides deterministic input replay for later
-recorded-day backtests. It is shadow-only and is not connected to the HA
+effects. `replay_predictive_plans` and `backtest_predictive_day` provide
+deterministic input replay and outcome aggregation for recorded-day backtests.
+It is shadow-only and is not connected to the HA
 write transport. HA can expose its target, headroom, inhibit flag, and reason
 through read-only sensors after forecast options are configured.
 

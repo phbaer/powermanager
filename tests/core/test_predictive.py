@@ -2,8 +2,10 @@ from datetime import UTC, datetime
 
 import pytest
 from powermanager_core.control import (
+    PredictiveBacktestSample,
     PredictiveInputs,
     PredictivePlanningError,
+    backtest_predictive_day,
     plan_predictive_charge,
     replay_predictive_plans,
 )
@@ -79,3 +81,27 @@ def test_replay_is_deterministic_and_validates_horizon() -> None:
 def test_planner_rejects_nonfinite_inputs() -> None:
     with pytest.raises(PredictivePlanningError, match="finite"):
         plan_predictive_charge(_inputs(remaining_pv_kwh=float("nan")))
+
+
+def test_backtest_reports_soc_reserve_and_curtailment_outcomes() -> None:
+    samples = [
+        PredictiveBacktestSample(_inputs(battery_soc_percent=50), 5, 1, 1),
+        PredictiveBacktestSample(_inputs(battery_soc_percent=90), 0, 2, 1),
+    ]
+    result = backtest_predictive_day(samples)
+    assert len(result.plans) == 2
+    assert result.final_soc_percent >= result.minimum_soc_percent
+    assert result.reserve_breaches == 0
+    assert result.total_curtailed_surplus_kwh >= 0
+
+
+def test_backtest_rejects_mismatched_capacity_or_missing_samples() -> None:
+    with pytest.raises(PredictivePlanningError, match="at least one"):
+        backtest_predictive_day([])
+    with pytest.raises(PredictivePlanningError, match="capacity"):
+        backtest_predictive_day(
+            [
+                PredictiveBacktestSample(_inputs(), 0, 0, 1),
+                PredictiveBacktestSample(_inputs(usable_capacity_kwh=10), 0, 0, 1),
+            ]
+        )

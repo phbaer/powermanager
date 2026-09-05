@@ -221,7 +221,8 @@ their safety boundaries.
   now exposed through read-only HA shadow sensors and diagnostics, but cannot
   write an inverter target.
 - [ ] Backtest recorded days with poor/missing forecasts, tariff changes, and
-  seasonal/DST cases; compare reserve and end-of-day outcomes.
+  seasonal/DST cases; compare reserve and end-of-day outcomes. The reusable
+  backtest primitive exists, but no recorded deployment days have been loaded.
 - [ ] Complete a documented shadow-mode period before supervised activation.
 - [ ] Verify Speedwire measurement mappings if direct meter telemetry is needed;
   existing HA grid entities can remain an alternative.

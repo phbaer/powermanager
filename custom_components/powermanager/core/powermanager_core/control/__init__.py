@@ -2,9 +2,12 @@
 
 from .policy import ControlIntent, ControlRule, RuleConditions, evaluate_rules
 from .predictive import (
+    PredictiveBacktestResult,
+    PredictiveBacktestSample,
     PredictiveInputs,
     PredictivePlan,
     PredictivePlanningError,
+    backtest_predictive_day,
     plan_predictive_charge,
     replay_predictive_plans,
 )
@@ -21,5 +24,6 @@ __all__ = [
     "ControlWatchdog", "WatchdogStatus",
     "ControlDecision", "ControlRuntime",
     "PredictiveInputs", "PredictivePlan", "PredictivePlanningError",
-    "plan_predictive_charge", "replay_predictive_plans",
+    "PredictiveBacktestSample", "PredictiveBacktestResult",
+    "plan_predictive_charge", "replay_predictive_plans", "backtest_predictive_day",
 ]

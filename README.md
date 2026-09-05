@@ -91,7 +91,7 @@ requested target power, but never sends that target to the Sunny Island.
 The core also includes a predictive shadow planner that accounts for usable
 capacity, reserve and end-of-day targets, forecast uncertainty, export capacity,
 and charge limits. It produces explainable recommendations and deterministic
-replay results for future backtesting; it is not connected to Home Assistant
+replay and SoC/reserve outcome results for future backtesting; it is not connected to Home Assistant
 write control or any inverter write path. When forecast options are configured,
 Home Assistant exposes the recommendation and its reason as shadow sensors.
 

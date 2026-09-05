@@ -65,8 +65,9 @@ remaining PV/load energy, forecast uncertainty, usable capacity, reserve and
 end-of-day SoC targets, export capacity, and reported charge limits. It returns
 an explainable target, required energy, headroom, and an explicit charge-inhibit
 flag. A zero target is never interpreted as a generic inverter mode. The
-planner can replay timestamped inputs for backtests, but it is not connected to
-Home Assistant write control and remains subordinate to `control.safety`.
+planner can replay timestamped inputs and report SoC, reserve, grid-energy, and
+curtailment outcomes for backtests. It is not connected to Home Assistant write
+control and remains subordinate to `control.safety`.
 
 ## Control milestones
 

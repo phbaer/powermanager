@@ -50,6 +50,28 @@ class PredictivePlan:
     reason: str
 
 
+@dataclass(frozen=True, slots=True)
+class PredictiveBacktestSample:
+    """One planning input paired with observed PV/load energy for replay."""
+
+    inputs: PredictiveInputs
+    actual_pv_kwh: float
+    actual_load_kwh: float
+    interval_hours: float
+
+
+@dataclass(frozen=True, slots=True)
+class PredictiveBacktestResult:
+    """Aggregate outcomes from a deterministic recorded-day replay."""
+
+    plans: tuple[PredictivePlan, ...]
+    final_soc_percent: float
+    minimum_soc_percent: float
+    reserve_breaches: int
+    total_grid_charge_kwh: float
+    total_curtailed_surplus_kwh: float
+
+
 def plan_predictive_charge(inputs: PredictiveInputs) -> PredictivePlan:
     """Build one bounded plan from forecast and battery constraints.
 
@@ -132,6 +154,53 @@ def replay_predictive_plans(inputs: Iterable[PredictiveInputs]) -> tuple[Predict
     return tuple(plan_predictive_charge(item) for item in inputs)
 
 
+def backtest_predictive_day(
+    samples: Iterable[PredictiveBacktestSample],
+) -> PredictiveBacktestResult:
+    """Replay plans against observed PV/load energy without device effects."""
+    recorded = tuple(samples)
+    if not recorded:
+        raise PredictivePlanningError("backtest requires at least one sample")
+    capacity = recorded[0].inputs.usable_capacity_kwh
+    reserve = recorded[0].inputs.reserve_soc_percent
+    soc = recorded[0].inputs.battery_soc_percent
+    plans: list[PredictivePlan] = []
+    minimum_soc = soc
+    reserve_breaches = 0
+    grid_charge = 0.0
+    curtailed_surplus = 0.0
+    for sample in recorded:
+        if sample.inputs.usable_capacity_kwh != capacity:
+            raise PredictivePlanningError("backtest capacity must remain constant")
+        if sample.inputs.reserve_soc_percent != reserve:
+            raise PredictivePlanningError("backtest reserve must remain constant")
+        _validate_actual_sample(sample)
+        plan = plan_predictive_charge(sample.inputs)
+        plans.append(plan)
+        grid_energy = plan.target_power_w / 1000 * sample.interval_hours
+        available_surplus = max(sample.actual_pv_kwh - sample.actual_load_kwh, 0.0)
+        deficit = max(sample.actual_load_kwh - sample.actual_pv_kwh, 0.0)
+        charge_energy = min(
+            available_surplus + grid_energy,
+            capacity * (1 - soc / 100),
+        )
+        discharge_energy = min(deficit, max(capacity * (soc - reserve) / 100, 0.0))
+        soc += (charge_energy - discharge_energy) / capacity * 100
+        grid_charge += grid_energy
+        curtailed_surplus += max(available_surplus - charge_energy, 0.0)
+        minimum_soc = min(minimum_soc, soc)
+        if soc < reserve:
+            reserve_breaches += 1
+    return PredictiveBacktestResult(
+        tuple(plans),
+        round(soc, 6),
+        round(minimum_soc, 6),
+        reserve_breaches,
+        round(grid_charge, 6),
+        round(curtailed_surplus, 6),
+    )
+
+
 def _validate_inputs(inputs: PredictiveInputs) -> None:
     if inputs.horizon_end <= inputs.timestamp:
         raise PredictivePlanningError("planning horizon must end after the input timestamp")
@@ -166,3 +235,13 @@ def _validate_inputs(inputs: PredictiveInputs) -> None:
         inputs.reported_charge_limit_w is not None and inputs.reported_charge_limit_w < 0
     ):
         raise PredictivePlanningError("charge limits cannot be negative")
+
+
+def _validate_actual_sample(sample: PredictiveBacktestSample) -> None:
+    values = (sample.actual_pv_kwh, sample.actual_load_kwh, sample.interval_hours)
+    if not all(math.isfinite(value) for value in values):
+        raise PredictivePlanningError("backtest observations must be finite")
+    if sample.actual_pv_kwh < 0 or sample.actual_load_kwh < 0:
+        raise PredictivePlanningError("backtest energies cannot be negative")
+    if sample.interval_hours <= 0:
+        raise PredictivePlanningError("backtest interval must be positive")
