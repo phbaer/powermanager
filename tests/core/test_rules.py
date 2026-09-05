@@ -11,6 +11,13 @@ def test_load_rules_rejects_enabled_document(tmp_path: Path) -> None:
         load_rules(path)
 
 
+def test_parse_rules_allows_enabled_document_only_when_explicitly_allowed() -> None:
+    from powermanager_core.control.rules import parse_rules_document
+
+    document = {"version": 1, "enabled": True, "rules": []}
+    assert parse_rules_document(document, allow_enabled=True) == ()
+
+
 def test_load_rules_parses_typed_rule(tmp_path: Path) -> None:
     path = tmp_path / "rules.yaml"
     path.write_text(

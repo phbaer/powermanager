@@ -256,7 +256,14 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         self._active_control_power_w: float | None = None
         self._active_control_last_error: str | None = None
         rules_yaml = entry.options.get(CONF_RULES_YAML)
-        self._rules = parse_rules_document(yaml.safe_load(rules_yaml)) if rules_yaml else ()
+        self._rules = (
+            parse_rules_document(
+                yaml.safe_load(rules_yaml),
+                allow_enabled=self._active_control_enabled and self._active_control_scheduled,
+            )
+            if rules_yaml
+            else ()
+        )
         self._timezone = _ha_timezone(hass)
         self._simulation_runtime = ControlRuntime(
             self._rules,

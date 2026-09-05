@@ -219,7 +219,10 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 errors["base"] = "load_forecast_requires_load_power"
             if not errors and rules_yaml:
                 try:
-                    parse_rules_document(yaml.safe_load(rules_yaml))
+                    parse_rules_document(
+                        yaml.safe_load(rules_yaml),
+                        allow_enabled=active_enabled and active_scheduled,
+                    )
                 except (TypeError, ValueError, yaml.YAMLError):
                     errors["base"] = "invalid_rules"
             if not errors and inverters_yaml and profile_count:

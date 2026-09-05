@@ -111,6 +111,27 @@ async def test_options_flow_requires_all_confirmations_before_active_enablement(
     }
 
 
+async def test_options_flow_allows_enabled_rules_only_for_scheduled_control() -> None:
+    """Executable rules require every explicit active-control confirmation."""
+    flow = PowerManagerOptionsFlow(Mock(options={}))
+    result = await flow.async_step_init()
+    data = result["data_schema"](
+        {
+            "scan_interval": 30,
+            "telemetry_max_age": 120,
+            "active_control_enabled": True,
+            "active_control_scheduled": True,
+            "control_ownership_confirmed": True,
+            "active_control_single_phase_confirmed": True,
+            "active_control_firmware_confirmed": True,
+            "active_control_ls_rcd_confirmed": True,
+            "rules_yaml": "version: 1\nenabled: true\nrules: []",
+        }
+    )
+    response = await flow.async_step_init(data)
+    assert response["type"] is FlowResultType.CREATE_ENTRY
+
+
 async def test_control_services_are_explicit_and_locked_by_default(hass) -> None:
     """Registering services never bypasses the coordinator's safety gates."""
     await async_setup(hass, {})

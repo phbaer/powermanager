@@ -21,12 +21,20 @@ def load_rules(path: str | Path) -> tuple[ControlRule, ...]:
     return parse_rules_document(document)
 
 
-def parse_rules_document(document: Any) -> tuple[ControlRule, ...]:
-    """Validate an already-parsed rule document without performing I/O."""
+def parse_rules_document(
+    document: Any, *, allow_enabled: bool = False
+) -> tuple[ControlRule, ...]:
+    """Validate an already-parsed rule document without performing I/O.
+
+    Enabled documents are accepted only by the explicitly commissioned HA
+    scheduler. Standalone callers and simulation remain disabled by default.
+    """
     if not isinstance(document, dict) or document.get("version") != 1:
         raise ValueError("rule document must declare version: 1")
-    if document.get("enabled", False):
-        raise ValueError("control rule execution must remain disabled during simulation")
+    if document.get("enabled", False) and not allow_enabled:
+        raise ValueError(
+            "control rule execution is disabled without explicit active-control enablement"
+        )
     raw_rules = document.get("rules", [])
     if not isinstance(raw_rules, list):
         raise ValueError("rules must be a list")
