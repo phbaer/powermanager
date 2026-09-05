@@ -124,10 +124,12 @@ and no transport writes.
 
 ### 5. Build a recoverable command-session lifecycle using fake transport
 
-- [ ] Require preflight, explicit enablement, ownership, bounded power/duration,
-  and current safety approval at the write boundary.
-- [ ] Revalidate telemetry, ownership, and intent during heartbeats; currently the
-  session repeatedly sends a fixed target without these checks.
+- [x] Require a successful read-only failsafe preflight, explicit enablement,
+  ownership, and bounded power/duration at the setpoint boundary. Current
+  telemetry approval is supplied by the session validation callback.
+- [x] Revalidate the command through an optional async validation callback before
+  every heartbeat. HA still needs to provide the production callback with live
+  telemetry and ownership state.
 - [ ] Prevent overlapping sessions and define override/emergency-stop precedence.
   Revoked control permission must not prevent necessary recovery.
 - [x] Separate transport timeouts from normal session expiry and enforce a

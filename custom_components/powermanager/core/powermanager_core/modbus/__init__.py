@@ -1,5 +1,6 @@
 """Typed, read-only Modbus utilities."""
 
+from .client import PymodbusTcpReadOnlyTransport, PymodbusTcpWriteTransport
 from .decoder import decode_firmware_version, decode_registers
 from .registers import RegisterDataType, RegisterDefinition, RegisterTable
 
@@ -9,4 +10,6 @@ __all__ = [
     "RegisterTable",
     "decode_firmware_version",
     "decode_registers",
+    "PymodbusTcpReadOnlyTransport",
+    "PymodbusTcpWriteTransport",
 ]
