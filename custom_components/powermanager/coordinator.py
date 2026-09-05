@@ -456,8 +456,6 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             return "battery telemetry is not online"
         if data.device_info.firmware_version is None:
             return "Sunny Island firmware identity is unavailable"
-        if data.battery_state.operating_state not in SafetyConfig().allowed_operating_states:
-            return "battery operating state is not allowed"
         return None
 
     def _publish_control_status(self) -> None:
