@@ -109,14 +109,14 @@ including example-rule holds and local time windows.
 
 ### 4. Harden independent safety validation
 
-- [ ] Reject missing/nonfinite required SoC and targets, invalid safety bounds,
+- [x] Reject missing/nonfinite required SoC and targets, invalid safety bounds,
   future timestamps, stale individual sources, and unsupported operating states.
-- [ ] Validate required telemetry at command time; a fresh aggregate timestamp
-  must not hide stale battery/grid/price/forecast inputs.
-- [ ] Enforce maximum charging SoC, reserve plus dynamic discharge floor, and
-  applicable device/BMS power limits. Missing SoC currently permits discharge;
-  charging has no maximum-SoC guard, and charge limits/status are ignored.
-- [ ] Test directly constructed models independently of HA providers/YAML parsing,
+- [x] Validate required telemetry at command time; a fresh aggregate timestamp
+  cannot hide stale battery/grid/price/forecast inputs.
+- [x] Enforce maximum charging SoC, reserve plus dynamic discharge floor, and
+  reported battery charge limits. Device-specific power-limit mapping and
+  operating-state coverage still need validation on the target hardware.
+- [x] Test directly constructed models independently of HA providers/YAML parsing,
   including held intents after telemetry changes.
 
 Acceptance: invalid or unknown required safety inputs reject actions with a reason

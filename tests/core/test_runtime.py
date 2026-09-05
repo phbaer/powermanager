@@ -9,8 +9,15 @@ def test_runtime_records_accepted_simulation_cycle() -> None:
     at = datetime(2026, 1, 1, 12, tzinfo=UTC)
     energy = EnergyState(
         timestamp=at,
-        battery=BatteryState(timestamp=at, communication_state=CommunicationState.ONLINE),
-        grid=GridState(timestamp=at, grid_power_w=-800),
+        battery=BatteryState(
+            timestamp=at,
+            battery_soc_percent=50,
+            operating_state="Ok",
+            communication_state=CommunicationState.ONLINE,
+        ),
+        grid=GridState(
+            timestamp=at, grid_power_w=-800, communication_state=CommunicationState.ONLINE
+        ),
     )
     runtime = ControlRuntime(
         (ControlRule("surplus", 1, RuleConditions(grid_power_below_w=-500), 1500),)
@@ -22,7 +29,10 @@ def test_runtime_records_accepted_simulation_cycle() -> None:
 
 def test_runtime_requires_heartbeat_before_cycle() -> None:
     at = datetime(2026, 1, 1, 12, tzinfo=UTC)
-    energy = EnergyState(timestamp=at, battery=BatteryState(timestamp=at))
+    energy = EnergyState(
+        timestamp=at,
+        battery=BatteryState(timestamp=at, battery_soc_percent=50, operating_state="Ok"),
+    )
     watchdog = ControlWatchdog()
     watchdog.feed(at)
     runtime = ControlRuntime((), watchdog=watchdog)
@@ -34,8 +44,15 @@ def test_runtime_holds_accepted_intent_until_hold_period_expires() -> None:
     at = datetime(2026, 1, 1, 12, tzinfo=UTC)
     energy = EnergyState(
         timestamp=at,
-        battery=BatteryState(timestamp=at, communication_state=CommunicationState.ONLINE),
-        grid=GridState(timestamp=at, grid_power_w=-800),
+        battery=BatteryState(
+            timestamp=at,
+            battery_soc_percent=50,
+            operating_state="Ok",
+            communication_state=CommunicationState.ONLINE,
+        ),
+        grid=GridState(
+            timestamp=at, grid_power_w=-800, communication_state=CommunicationState.ONLINE
+        ),
     )
     rule = ControlRule("surplus", 1, RuleConditions(grid_power_below_w=-500), 1500, hold_seconds=60)
     runtime = ControlRuntime((rule,))
@@ -44,9 +61,16 @@ def test_runtime_holds_accepted_intent_until_hold_period_expires() -> None:
     no_surplus = EnergyState(
         timestamp=at + timedelta(seconds=10),
         battery=BatteryState(
-            timestamp=at + timedelta(seconds=10), communication_state=CommunicationState.ONLINE
+            timestamp=at + timedelta(seconds=10),
+            battery_soc_percent=50,
+            operating_state="Ok",
+            communication_state=CommunicationState.ONLINE,
         ),
-        grid=GridState(timestamp=at + timedelta(seconds=10), grid_power_w=100),
+        grid=GridState(
+            timestamp=at + timedelta(seconds=10),
+            grid_power_w=100,
+            communication_state=CommunicationState.ONLINE,
+        ),
     )
     held = asyncio.run(runtime.cycle(no_surplus, at=at + timedelta(seconds=10), enabled=True))
     assert held.accepted
@@ -58,7 +82,12 @@ def test_runtime_applies_rule_cooldown() -> None:
     at = datetime(2026, 1, 1, 12, tzinfo=UTC)
     energy = EnergyState(
         timestamp=at,
-        battery=BatteryState(timestamp=at, communication_state=CommunicationState.ONLINE),
+        battery=BatteryState(
+            timestamp=at,
+            battery_soc_percent=50,
+            operating_state="Ok",
+            communication_state=CommunicationState.ONLINE,
+        ),
     )
     rule = ControlRule("always", 1, RuleConditions(), 100, cooldown_seconds=60)
     runtime = ControlRuntime((rule,))

@@ -132,6 +132,7 @@ async def test_coordinator_uses_runtime_for_simulation_decision(coordinator):
     battery = BatteryState(
         timestamp=now,
         battery_soc_percent=50,
+        operating_state="Ok",
         communication_state=CommunicationState.ONLINE,
     )
     coordinator._rules = (ControlRule("always", 1, RuleConditions(), 100),)
