@@ -23,6 +23,12 @@ Failed listeners retry after 30 seconds; traffic expires after 120 seconds. Sile
 never grants ownership eligibility. Reload starts a new observation history. No
 indicator enables writes.
 
+An observed sender address is not treated as a device-role determination. Verified
+telemetry-only devices can be added to normalized HA sensors in future protocol
+adapters, while unknown or control-capable sources remain a control blocker. Any
+verified control datagram must inhibit control immediately; silence or missing
+packets can never authorize it.
+
 ## Development
 
 The project uses [uv](https://docs.astral.sh/uv/) for fast, reproducible local

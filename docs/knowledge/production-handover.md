@@ -71,6 +71,11 @@ Completed passive detection improvements:
   subset classified as external; diagnostics expose the external subset so local
   debugging can identify a broadcaster. The configured inverter host remains
   redacted from diagnostics.
+- An external sender address is not a device-role determination. A future verified
+  source inventory may classify a device as telemetry-only, control-capable, or
+  unknown and expose its normalized measurements as HA sensors. Unknown and
+  control-capable sources remain safety blockers; observed control traffic is an
+  immediate inhibit signal, while its absence never authorizes control.
 
 This is conservative source detection, not positive Home Manager identification
 or proof of exclusive ownership. Other SMA devices can trigger it. The listener
@@ -126,6 +131,11 @@ restart without relying on packages installed by the development environment.
   alongside scheduled Modbus updates.
 - [ ] Validate multicast reception/recovery on the deployment network; document
   interface/relay limitations and identify the Home Manager generation if required.
+- [ ] Build a fixture-backed Speedwire source inventory and role decoder. Expose
+  verified SMA and non-SMA telemetry through normalized HA sensors where a
+  protocol adapter exists; retain address, identity confidence, capability, and
+  last-seen metadata. Do not infer a control role from an IP address or from
+  silence.
 - [x] Read stable serial and firmware identity from the documented SI registers
   `30057`, `30061`, and `30063`; decode SMA's packed firmware format. The device
   registry now carries a serial identifier alongside the legacy entry identifier;
@@ -271,7 +281,9 @@ their safety boundaries.
   backtest primitive exists, but no recorded deployment days have been loaded.
 - [ ] Complete a documented shadow-mode period before supervised activation.
 - [ ] Verify Speedwire measurement mappings if direct meter telemetry is needed;
-  existing HA grid entities can remain an alternative.
+  existing HA grid entities can remain an alternative. Add verified control-frame
+  detection only as a diagnostic and immediate inhibit path; never use the lack of
+  a detected command as proof that another controller is absent.
 
 Acceptance: documented energy/reserve objectives and predictable degradation on
 forecast failure, with the independent safety layer retaining final authority.
