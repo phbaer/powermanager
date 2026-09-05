@@ -34,8 +34,12 @@ copy than this checkout: its manifest has no declared Home Assistant minimum or
 `pymodbus` requirement, and its file hashes differ from the current source. The
 deployed tree does not contain the current predictive/control modules. No files,
 configuration, or inverter settings were changed during this check. Installing a
-release archive and repeating the clean-install/current-version validation remains
-an open gate below.
+clean HACS release archive and repeating the clean-install/current-version
+validation remains an open gate below. The supervised deployment gate was later
+completed using the reviewed archive: the old directory was backed up at
+`/config/.powermanager-backups/powermanager-20260905.tgz`, HA was restarted, and
+the entry loaded 31 entities with no PowerManager-specific startup or polling
+errors in the post-restart log.
 
 Completed passive detection improvements:
 
@@ -78,9 +82,10 @@ Complete each acceptance gate before advancing to its dependent stage.
   caught and withheld so optional forecasting cannot break battery monitoring.
 - [ ] Install the actual HACS release archive into a clean HA environment without
   manually installing dependencies.
-- [ ] Replace the stale deployment on the supervised HA instance with the reviewed
-  archive using a restorable backup, reload the entry, and repeat read-only entity
-  and recovery checks; keep active control disabled.
+- [x] Replace the stale deployment on the supervised HA instance with the reviewed
+  archive using a restorable backup, restart HA, and repeat read-only entity and
+  recovery checks; keep active control disabled. The 2026-09-05 deployment loaded
+  31 entities and passed `ha core check`.
 - [ ] Validate the declared minimum and a current supported HA version; correct
   compatibility metadata if necessary.
 - [x] Keep the manifest and HACS metadata aligned on the declared minimum
