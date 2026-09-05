@@ -33,6 +33,7 @@ from custom_components.powermanager.core.powermanager_core.models import (
     EnergyState,
     ForecastState,
 )
+from custom_components.powermanager.sensor import SENSORS, PowerManagerSensor
 
 
 @pytest.fixture
@@ -161,6 +162,22 @@ async def test_unknown_and_stale_observation_are_visible(coordinator):
         "external_sources": [],
     }
     assert not coordinator.data.control_ownership_clear
+
+
+async def test_speedwire_count_sensor_exposes_sender_addresses(coordinator):
+    """The visible source-count entity also carries the debugging addresses."""
+    monitor = coordinator._speedwire_monitor
+    monitor.listening = True
+    monitor.observe(SpeedwireFrame(b"frame", ("127.0.0.2", 9522), datetime.now(UTC)))
+    coordinator._publish_observation()
+    description = next(item for item in SENSORS if item.key == "speedwire_source_count")
+    entity = PowerManagerSensor(coordinator, Mock(unique_id="test"), description)
+    assert entity.native_value == 1
+    assert entity.extra_state_attributes == {
+        "observation_state": "online",
+        "observed_sources": ["127.0.0.2"],
+        "external_sources": ["127.0.0.2"],
+    }
 
 
 async def test_listener_failure_retries_and_stop_cleans_up(coordinator):
