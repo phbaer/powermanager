@@ -218,6 +218,8 @@ class ControlCommandSession:
             if not await self._adapter.verify_failsafe():
                 raise ControlWriteError("Sunny Island failsafe preflight did not pass")
             baseline = await self._adapter.capture_baseline()
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + self._max_duration
             while not stop.is_set():
                 if self._validate_command is not None:
                     await self._validate_command(power_w)
@@ -226,8 +228,13 @@ class ControlCommandSession:
                 except TimeoutError as error:
                     raise ControlWriteError("setpoint heartbeat transport timed out") from error
                 try:
-                    await asyncio.wait_for(stop.wait(), timeout=self._interval)
+                    remaining = deadline - loop.time()
+                    if remaining <= 0:
+                        return
+                    await asyncio.wait_for(stop.wait(), timeout=min(self._interval, remaining))
                 except TimeoutError:
+                    if loop.time() >= deadline:
+                        return
                     continue
         except BaseException as error:
             primary_error = error

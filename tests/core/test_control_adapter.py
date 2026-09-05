@@ -152,3 +152,18 @@ def test_session_revalidates_before_each_heartbeat() -> None:
         )
     assert calls == 2
     assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]
+
+
+def test_unbounded_run_is_stopped_by_maximum_duration() -> None:
+    transport = FakeTransport()
+    adapter = SunnyIslandControlAdapter(
+        transport,
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+    )
+    asyncio.run(
+        ControlCommandSession(adapter, interval_seconds=0.001, max_duration_seconds=0.002).run(
+            100, asyncio.Event()
+        )
+    )
+    assert transport.calls[0][0] == 40149
+    assert transport.calls[-2:] == [(40151, [0, 802], 3), (40210, [0, 1079], 3)]
