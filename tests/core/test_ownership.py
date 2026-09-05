@@ -9,6 +9,7 @@ def test_non_inverter_speedwire_sender_is_warning_signal() -> None:
     frame = SpeedwireFrame(b"frame", ("10.0.1.192", 9522), datetime.now(UTC))
     assert monitor.observe(frame)
     assert monitor.possible_external_controller
+    assert monitor.external_sources == ("10.0.1.192",)
 
 
 def test_silence_failure_and_stale_observation_never_grant_eligibility() -> None:

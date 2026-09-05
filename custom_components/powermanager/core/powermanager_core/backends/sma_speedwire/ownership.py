@@ -57,4 +57,9 @@ class ExternalControllerMonitor:
     @property
     def possible_external_controller(self) -> bool:
         """Whether a non-Sunny-Island sender has been observed."""
-        return bool(self.observed_sources - self._inverter_sources)
+        return bool(self.external_sources)
+
+    @property
+    def external_sources(self) -> tuple[str, ...]:
+        """Return observed sender addresses that are not the configured inverter."""
+        return tuple(sorted(self.observed_sources - self._inverter_sources))

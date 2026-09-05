@@ -16,9 +16,12 @@ for the ordered implementation checklist and acceptance gates.
 Passive Home Manager detection warns about other SMA senders; it does not prove
 their identity or exclusive control ownership. Warnings persist across polls and
 listener retries. The warning's `observation_state` attribute distinguishes unknown,
-offline, stale, and online observation. Failed listeners retry after 30 seconds;
-traffic expires after 120 seconds. Silence never grants ownership eligibility.
-Reload starts a new observation history. No indicator enables writes.
+offline, stale, and online observation. Its `observed_sources` and
+`external_sources` attributes show the IPv4 senders seen on Speedwire; diagnostics
+include the external list for identifying a broadcaster on the local LAN.
+Failed listeners retry after 30 seconds; traffic expires after 120 seconds. Silence
+never grants ownership eligibility. Reload starts a new observation history. No
+indicator enables writes.
 
 ## Development
 

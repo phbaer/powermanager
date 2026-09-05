@@ -60,7 +60,10 @@ Completed passive detection improvements:
 - The warning is unknown during silence/failure/staleness unless a competitor
   was already detected, in which case it stays on. Its observation_state attribute
   and diagnostics expose health separately.
-- Diagnostics report sender count instead of exposing sender IP addresses.
+- The Speedwire warning entity exposes observed sender IPv4 addresses and the
+  subset classified as external; diagnostics expose the external subset so local
+  debugging can identify a broadcaster. The configured inverter host remains
+  redacted from diagnostics.
 
 This is conservative source detection, not positive Home Manager identification
 or proof of exclusive ownership. Other SMA devices can trigger it. The listener

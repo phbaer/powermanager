@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -42,9 +44,14 @@ class ExternalControllerWarning(CoordinatorEntity[PowerManagerCoordinator], Bina
         return False
 
     @property
-    def extra_state_attributes(self) -> dict[str, str]:
-        """Expose observation health independently of the latched warning."""
-        return {"observation_state": self.coordinator.data.speedwire_observation_state}
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose observation health and sender addresses for local debugging."""
+        data = self.coordinator.data
+        return {
+            "observation_state": data.speedwire_observation_state,
+            "observed_sources": list(data.speedwire_sources),
+            "external_sources": list(data.speedwire_external_sources),
+        }
 
 
 class ControlOwnershipClear(CoordinatorEntity[PowerManagerCoordinator], BinarySensorEntity):

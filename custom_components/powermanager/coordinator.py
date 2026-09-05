@@ -93,6 +93,7 @@ class PowerManagerData:
     energy_state: EnergyState
     possible_external_controller: bool = False
     speedwire_sources: tuple[str, ...] = ()
+    speedwire_external_sources: tuple[str, ...] = ()
     simulated_rule_id: str | None = None
     simulated_target_power_w: float | None = None
     control_ownership_clear: bool = False
@@ -255,6 +256,7 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             data,
             possible_external_controller=monitor.possible_external_controller,
             speedwire_sources=tuple(sorted(monitor.observed_sources)),
+            speedwire_external_sources=monitor.external_sources,
             speedwire_observation_state=monitor.observation_state(now),
             control_ownership_clear=monitor.ownership_eligible(
                 confirmed=self._control_ownership_confirmed, at=now,

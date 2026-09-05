@@ -280,3 +280,15 @@ class PowerManagerSensor(CoordinatorEntity[PowerManagerCoordinator], SensorEntit
     def native_value(self) -> Any:
         """Return the latest read-only value."""
         return self.entity_description.value_fn(self.coordinator)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Expose sender addresses on the Speedwire count sensor for debugging."""
+        if self.entity_description.key != "speedwire_source_count":
+            return None
+        data = self.coordinator.data
+        return {
+            "observation_state": data.speedwire_observation_state,
+            "observed_sources": list(data.speedwire_sources),
+            "external_sources": list(data.speedwire_external_sources),
+        }

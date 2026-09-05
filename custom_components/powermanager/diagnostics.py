@@ -1,4 +1,4 @@
-"""Redacted diagnostic data for support without exposing LAN addresses."""
+"""Diagnostic data for support, including observed local sender addresses."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from .coordinator import PowerManagerCoordinator
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> dict[str, Any]:
-    """Return current monitor-only diagnostics with the host redacted."""
+    """Return monitor-only diagnostics with the configured host redacted."""
     coordinator: PowerManagerCoordinator = hass.data[DOMAIN][entry.entry_id]
     data = coordinator.data
     return {
@@ -26,6 +26,7 @@ async def async_get_config_entry_diagnostics(
         "battery_state": asdict(data.battery_state),
         "possible_external_controller": data.possible_external_controller,
         "speedwire_source_count": len(data.speedwire_sources),
+        "speedwire_external_sources": list(data.speedwire_external_sources),
         "speedwire_observation_state": data.speedwire_observation_state,
         "control_ownership_clear": data.control_ownership_clear,
         "simulated_rule_id": data.simulated_rule_id,

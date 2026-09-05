@@ -133,6 +133,7 @@ async def test_detection_survives_poll_and_does_not_mask_modbus_failure(coordina
         data = await coordinator._async_update_data()
     assert data.possible_external_controller
     assert data.speedwire_sources == ("127.0.0.1", "127.0.0.2")
+    assert data.speedwire_external_sources == ("127.0.0.2",)
     assert not data.control_ownership_clear
 
 
@@ -146,10 +147,19 @@ async def test_unknown_and_stale_observation_are_visible(coordinator):
     monitor.observe(SpeedwireFrame(b"frame", ("127.0.0.1", 9522), datetime.now(UTC)))
     coordinator._publish_observation()
     assert entity.is_on is False
+    assert entity.extra_state_attributes == {
+        "observation_state": "online",
+        "observed_sources": ["127.0.0.1"],
+        "external_sources": [],
+    }
     monitor.last_received_at -= timedelta(seconds=121)
     coordinator._publish_observation()
     assert entity.is_on is None
-    assert entity.extra_state_attributes == {"observation_state": "stale"}
+    assert entity.extra_state_attributes == {
+        "observation_state": "stale",
+        "observed_sources": ["127.0.0.1"],
+        "external_sources": [],
+    }
     assert not coordinator.data.control_ownership_clear
 
 
