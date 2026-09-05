@@ -12,6 +12,7 @@ from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
+from math import isfinite
 from typing import Protocol
 
 from ...exceptions import PowerManagerError
@@ -273,8 +274,9 @@ class ControlCommandSession:
     def _record_event(
         self, kind: str, *, power_w: float | None = None, reason: str | None = None
     ) -> None:
+        safe_power = power_w if power_w is not None and isfinite(power_w) else None
         self._events.append(
-            ControlEvent(kind, datetime.now(UTC), power_w=power_w, reason=reason)
+            ControlEvent(kind, datetime.now(UTC), power_w=safe_power, reason=reason)
         )
 
     async def run(self, power_w: float, stop: asyncio.Event) -> None:

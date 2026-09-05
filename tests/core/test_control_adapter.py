@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 
 import pytest
 from powermanager_core.backends.sma_sunny_island import (
@@ -188,6 +189,19 @@ def test_failed_preflight_is_recorded_without_transport_details() -> None:
     assert [(event.kind, event.reason) for event in session.events] == [
         ("session_failed", "preflight")
     ]
+
+
+def test_session_events_drop_nonfinite_power_values() -> None:
+    transport = FakeTransport()
+    adapter = SunnyIslandControlAdapter(
+        transport,
+        guard=ControlWriteGuard(enabled=True, ownership_confirmed=True),
+    )
+    session = ControlCommandSession(adapter)
+    with pytest.raises(ControlWriteError, match="exceeds configured bounds"):
+        asyncio.run(session.run(math.nan, asyncio.Event()))
+    assert session.events[0].kind == "session_started"
+    assert session.events[0].power_w is None
 
 
 def test_session_revalidates_before_each_heartbeat() -> None:
