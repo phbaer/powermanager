@@ -79,8 +79,9 @@ restart without relying on packages installed by the development environment.
 - [ ] Validate multicast reception/recovery on the deployment network; document
   interface/relay limitations and identify the Home Manager generation if required.
 - [x] Read stable serial and firmware identity from the documented SI registers
-  `30057`, `30061`, and `30063`; decode SMA's packed firmware format. Host-based
-  identity migration and physical firmware support validation remain outstanding.
+  `30057`, `30061`, and `30063`; decode SMA's packed firmware format. The device
+  registry now carries a serial identifier alongside the legacy entry identifier;
+  explicit migration and physical firmware support validation remain outstanding.
 - [ ] Establish firmware support and unsupported/unavailable-state reporting.
 - [ ] Require tests, Ruff, hassfest, and HACS validation before publishing.
   Currently the release job depends only on its HACS validation job.
@@ -138,8 +139,9 @@ and no transport writes.
 - [x] Capture approved baseline operating settings and verify restoration. The
   session restores communication/mode values and reads them back; the dedicated
   restore-normal path remains available for recovery.
-- [ ] Test partial writes, failed readback, cancellation, disconnection, restoration
-  failure, clock changes, and process restart policy.
+- [x] Test partial restoration writes and failed restoration reporting with fake
+  transport. Cancellation, disconnected transport, clock changes, and process
+  restart policy still need dedicated coverage.
 - [x] Separate raw write capability from the read-only transport. The Modbus
   client now exposes writes only through `PymodbusTcpWriteTransport`; the
   Sunny Island monitor retains the read-only transport.

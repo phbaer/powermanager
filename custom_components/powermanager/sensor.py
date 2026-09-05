@@ -216,8 +216,11 @@ class PowerManagerSensor(CoordinatorEntity[PowerManagerCoordinator], SensorEntit
         self.entity_description = description
         self._attr_unique_id = f"{entry.unique_id or entry.entry_id}_{description.key}"
         device = coordinator.data.device_info
+        identifiers = {(DOMAIN, entry.unique_id or entry.entry_id)}
+        if device.serial_number:
+            identifiers.add((DOMAIN, f"serial:{device.serial_number}"))
         self._attr_device_info = HaDeviceInfo(
-            identifiers={(DOMAIN, entry.unique_id or entry.entry_id)},
+            identifiers=identifiers,
             manufacturer="SMA",
             model=device.model,
             serial_number=device.serial_number,
