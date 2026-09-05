@@ -19,6 +19,7 @@ from custom_components.powermanager.core.powermanager_core.models import (
     CommunicationState,
     DeviceInfo,
 )
+from custom_components.powermanager.ha_energy_dashboard import EnergyDashboardConfiguration
 from custom_components.powermanager.ha_price_provider import HomeAssistantEntityPriceProvider
 
 
@@ -128,6 +129,35 @@ async def test_options_flow_entity_picker_profiles_build_role_aware_yaml() -> No
     sources = parse_inverter_sources(profile_result["data"]["inverters_yaml"])
     assert sources[0].generation_power_entity == "sensor.sunnyboy_power"
     assert sources[0].remaining_pv_forecast_entity == "sensor.sunnyboy_forecast"
+
+
+async def test_options_flow_shows_dashboard_sources_and_requires_load_forecast(hass) -> None:
+    """Imported dashboard topology is visible and missing planning input blocks save."""
+    dashboard = EnergyDashboardConfiguration(
+        grid_power_entities=("sensor.grid_power",),
+        inverter_sources=(),
+        missing=("PV roof_pv: no instantaneous generation entity",),
+        summary="- PV roof_pv: missing generation",
+    )
+    flow = PowerManagerOptionsFlow(Mock(options={}))
+    flow.hass = hass
+    result = await flow.async_step_init()
+    data = result["data_schema"]({
+        "scan_interval": 30,
+        "telemetry_max_age": 120,
+        "inverters_yaml": "",
+    })
+    with (
+        patch(
+            "custom_components.powermanager.config_flow.async_read_energy_dashboard_configuration",
+            AsyncMock(return_value=dashboard),
+        ),
+        patch.object(flow, "async_show_form", return_value={"errors": {}}) as show_form,
+    ):
+        response = await flow.async_step_init(data)
+
+    assert response == {"errors": {}}
+    assert show_form.call_args.kwargs["errors"] == {"base": "missing_load_forecast"}
 
 
 async def test_setup_failure_stops_monitor_and_removes_coordinator(hass) -> None:

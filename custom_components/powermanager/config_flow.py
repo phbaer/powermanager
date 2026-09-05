@@ -76,6 +76,10 @@ from .core.powermanager_core.backends.sma_sunny_island import (
 from .core.powermanager_core.control.rules import parse_rules_document
 from .core.powermanager_core.exceptions import BackendConnectionError, UnsupportedDeviceError
 from .core.powermanager_core.inverters import parse_inverter_sources
+from .ha_energy_dashboard import (
+    EnergyDashboardConfiguration,
+    async_read_energy_dashboard_configuration,
+)
 
 
 async def validate_input(data: dict[str, Any]) -> str:
@@ -144,6 +148,7 @@ class PowerManagerOptionsFlow(OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Update the coordinator polling interval."""
         errors: dict[str, str] = {}
+        dashboard = await self._energy_dashboard_configuration()
         if user_input is not None:
             grid_power_entity = user_input.get(CONF_GRID_POWER_ENTITY)
             grid_import_power_entity = user_input.get(CONF_GRID_IMPORT_POWER_ENTITY)
@@ -153,6 +158,7 @@ class PowerManagerOptionsFlow(OptionsFlow):
             )
             estimate_remaining_load = user_input.get(CONF_ESTIMATE_REMAINING_LOAD, False)
             remaining_load_forecast_entity = user_input.get(CONF_REMAINING_LOAD_FORECAST_ENTITY)
+            remaining_pv_forecast_entity = user_input.get(CONF_REMAINING_PV_FORECAST_ENTITY)
             price_entity = user_input.get(CONF_PRICE_ENTITY)
             static_price = user_input.get(CONF_STATIC_PRICE_PER_KWH)
             predictive_reserve = user_input.get(
@@ -201,6 +207,51 @@ class PowerManagerOptionsFlow(OptionsFlow):
                         errors["base"] = "invalid_static_price"
             if not errors and float(predictive_reserve) > float(predictive_end):
                 errors["base"] = "invalid_predictive_targets"
+            has_manual_grid = bool(
+                grid_power_entity or (grid_import_power_entity and grid_export_power_entity)
+            )
+            if (
+                not errors
+                and dashboard.configured
+                and not has_manual_grid
+                and not dashboard.grid_power_entities
+            ):
+                errors["base"] = "missing_grid_power_entity"
+            has_load_forecast = bool(remaining_load_forecast_entity) or bool(
+                estimate_remaining_load and load_power_entity
+            )
+            if not errors and dashboard.configured and not has_load_forecast:
+                errors["base"] = "missing_load_forecast"
+            if (
+                not errors
+                and dashboard.configured
+                and dashboard.missing
+                and not profile_count
+                and (inverters_yaml or "").strip() == dashboard.inverter_yaml().strip()
+                and any(
+                    item.startswith("PV ") or item.startswith("Inverters:")
+                    for item in dashboard.missing
+                )
+            ):
+                missing_generation = any(
+                    item.startswith("PV ")
+                    and "instantaneous generation" in item
+                    for item in dashboard.missing
+                )
+                missing_forecast = any(
+                    item.startswith("PV ")
+                    and ("forecast" in item or "solar forecast" in item)
+                    for item in dashboard.missing
+                )
+                if missing_generation or any(
+                    item.startswith("Inverters:") for item in dashboard.missing
+                ):
+                    errors["base"] = "missing_inverter_telemetry"
+                elif missing_forecast and not (
+                    remaining_pv_forecast_entity
+                    or self._option(CONF_REMAINING_PV_FORECAST_ENTITY)
+                ):
+                    errors["base"] = "missing_pv_forecast"
             if not errors and profile_count:
                 self._pending_options = dict(user_input)
                 self._pending_options.pop(CONF_INVERTER_PROFILE_COUNT, None)
@@ -208,6 +259,9 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 self._inverter_profiles = []
                 return await self.async_step_inverter()
             if not errors:
+                imported_yaml = dashboard.inverter_yaml()
+                if imported_yaml and (inverters_yaml or "").strip() == imported_yaml.strip():
+                    user_input.pop(CONF_INVERTERS, None)
                 user_input.pop(CONF_INVERTER_PROFILE_COUNT, None)
                 return self.async_create_entry(title="", data=user_input)
 
@@ -221,8 +275,15 @@ class PowerManagerOptionsFlow(OptionsFlow):
                     vol.Coerce(int),
                     vol.Range(min=MIN_SCAN_INTERVAL_SECONDS, max=MAX_SCAN_INTERVAL_SECONDS),
                 ),
-                self._optional_field(CONF_GRID_POWER_ENTITY, self._option(CONF_GRID_POWER_ENTITY)):
-                    _POWER_ENTITY_SELECTOR,
+                self._optional_field(
+                    CONF_GRID_POWER_ENTITY,
+                    self._option(CONF_GRID_POWER_ENTITY)
+                    or (
+                        dashboard.grid_power_entities[0]
+                        if len(dashboard.grid_power_entities) == 1
+                        else None
+                    ),
+                ): _POWER_ENTITY_SELECTOR,
                 self._optional_field(
                     CONF_GRID_IMPORT_POWER_ENTITY, self._option(CONF_GRID_IMPORT_POWER_ENTITY)
                 ): _POWER_ENTITY_SELECTOR,
@@ -250,9 +311,15 @@ class PowerManagerOptionsFlow(OptionsFlow):
                         DEFAULT_LOAD_FORECAST_HISTORY_DAYS,
                     ),
                 ): _LOAD_FORECAST_DAYS_SELECTOR,
-                self._optional_field(CONF_PRICE_ENTITY, self._option(CONF_PRICE_ENTITY)):
-                    _PRICE_ENTITY_SELECTOR,
-                self._optional_field(CONF_STATIC_PRICE_PER_KWH, static_price_default):
+                self._optional_field(
+                    CONF_PRICE_ENTITY, self._option(CONF_PRICE_ENTITY) or dashboard.price_entity
+                ): _PRICE_ENTITY_SELECTOR,
+                self._optional_field(
+                    CONF_STATIC_PRICE_PER_KWH,
+                    static_price_default
+                    if static_price_default is not None
+                    else dashboard.static_price_per_kwh,
+                ):
                     _STATIC_PRICE_SELECTOR,
                 self._optional_field(
                     CONF_REMAINING_PV_FORECAST_ENTITY,
@@ -266,7 +333,8 @@ class PowerManagerOptionsFlow(OptionsFlow):
                     _RULES_SELECTOR,
                 vol.Optional(
                     CONF_INVERTERS,
-                    default=self._config_entry.options.get(CONF_INVERTERS, ""),
+                    default=self._config_entry.options.get(CONF_INVERTERS)
+                    or dashboard.inverter_yaml(),
                 ): _INVERTERS_SELECTOR,
                 vol.Optional(CONF_INVERTER_PROFILE_COUNT, default=0): _INVERTER_COUNT_SELECTOR,
                 vol.Optional(
@@ -321,7 +389,12 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 ),
             }
         )
-        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={"energy_dashboard_summary": dashboard.summary},
+        )
 
     async def async_step_inverter(
         self, user_input: dict[str, Any] | None = None
@@ -371,6 +444,13 @@ class PowerManagerOptionsFlow(OptionsFlow):
     def _option(self, key: str) -> str | None:
         """Return an optional selector default without presenting an empty value."""
         return self._config_entry.options.get(key) or None
+
+    async def _energy_dashboard_configuration(self) -> EnergyDashboardConfiguration:
+        """Return the live Energy Dashboard topology when HA provides it."""
+        hass = getattr(self, "hass", None)
+        if hass is None:
+            return EnergyDashboardConfiguration()
+        return await async_read_energy_dashboard_configuration(hass)
 
     @staticmethod
     def _optional_field(key: str, default: Any) -> vol.Optional:

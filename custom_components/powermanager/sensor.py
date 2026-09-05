@@ -238,6 +238,13 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
         translation_key="speedwire_source_count",
         value_fn=lambda coordinator: len(coordinator.data.speedwire_sources),
     ),
+    PowerManagerSensorDescription(
+        key="energy_dashboard_summary",
+        translation_key="energy_dashboard_summary",
+        value_fn=lambda coordinator: (
+            "ready" if not coordinator.data.energy_dashboard_missing else "incomplete"
+        ),
+    ),
 )
 
 
@@ -298,7 +305,13 @@ class PowerManagerSensor(CoordinatorEntity[PowerManagerCoordinator], SensorEntit
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Expose sender addresses on the Speedwire count sensor for debugging."""
         if self.entity_description.key != "speedwire_source_count":
-            return None
+            if self.entity_description.key != "energy_dashboard_summary":
+                return None
+            data = self.coordinator.data
+            return {
+                "summary": data.energy_dashboard_summary,
+                "missing": list(data.energy_dashboard_missing),
+            }
         data = self.coordinator.data
         return {
             "observation_state": data.speedwire_observation_state,

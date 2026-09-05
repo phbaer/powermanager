@@ -41,6 +41,14 @@ household load forecast stay site-level inputs. PV forecasts are aggregated only
 when every configured PV forecast is fresh. This adapter is read-only; direct
 Speedwire identity and role decoding remains a separate fixture-backed task.
 
+The adapter also reads Home Assistant's Energy Dashboard manager. Its grid
+`stat_rate`, solar `stat_rate`, battery `stat_rate`, tariff, and configured solar
+forecast entries are imported as defaults. The options flow displays the
+imported PV topology and blocks saving when a configured source has no usable
+instantaneous sensor. Since the dashboard stores no whole-home remaining-load
+forecast, the operator must provide one or enable Recorder-based estimation from
+a whole-home load sensor.
+
 The core safety validator also checks direct model inputs: source communication
 state, per-source freshness, timestamps in the future, finite targets, battery
 SoC, operating state, maximum charge SoC, dynamic discharge floor, and reported

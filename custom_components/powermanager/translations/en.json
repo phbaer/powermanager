@@ -21,7 +21,7 @@
     "step": {
       "init": {
         "title": "Polling settings",
-        "description": "Choose how often PowerManager reads the Sunny Island. Power and forecast selectors are unit-filtered. Set either a market-price entity or a fixed import price.",
+        "description": "Choose how often PowerManager reads the Sunny Island. Power and forecast selectors are unit-filtered. Energy Dashboard sources are imported below and shown with their readiness status. Set either a market-price entity or a fixed import price.\n\n{energy_dashboard_summary}",
         "data": {
           "scan_interval": "Polling interval (seconds)",
           "grid_power_entity": "Grid exchange power entity",
@@ -103,6 +103,10 @@
       "invalid_inverters": "Inverter sources must be a valid YAML list with unique lowercase IDs and at least one entity per inverter.",
       "inverter_source_conflict": "Use either the inverter entity-picker flow or the advanced inverter YAML field, not both.",
       "invalid_inverter_profile": "The inverter profile is incomplete or inconsistent with its selected role.",
+      "missing_grid_power_entity": "Energy Dashboard has no usable instantaneous grid-power sensor. Configure one in the grid power field.",
+      "missing_load_forecast": "Configure a whole-home remaining-load forecast, or enable historical load estimation with a whole-home load-power sensor.",
+      "missing_inverter_telemetry": "One or more Energy Dashboard PV sources has no usable generation sensor. Configure the missing source manually before saving.",
+      "missing_pv_forecast": "The Energy Dashboard has no usable solar forecast for its PV sources. Configure a remaining-PV forecast entity before saving.",
       "invalid_predictive_targets": "The predictive reserve SoC cannot exceed the end-of-day target."
     }
   },
@@ -135,6 +139,7 @@
       "control_mode": {"name": "Control mode"},
       "control_block_reason": {"name": "Control block reason"},
       "speedwire_source_count": {"name": "Observed SMA Speedwire sources"},
+      "energy_dashboard_summary": {"name": "Energy Dashboard telemetry readiness"},
       "predictive_target_power": {"name": "Predictive shadow target power"},
       "predictive_target_soc": {"name": "Predictive shadow target SoC"},
       "predictive_forecast_surplus": {"name": "Predictive forecast surplus"},

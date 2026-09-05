@@ -81,6 +81,11 @@ from .core.powermanager_core.models import (
     InverterState,
 )
 from .core.powermanager_core.telemetry import ExponentialBackoff
+from .ha_energy_dashboard import (
+    EnergyDashboardConfiguration,
+    EnergyDashboardRuntime,
+    HomeAssistantEnergyDashboardProvider,
+)
 from .ha_entity_provider import HomeAssistantEntityGridProvider
 from .ha_forecast_provider import HomeAssistantEntityForecastProvider
 from .ha_inverter_provider import HomeAssistantEntityInverterProvider
@@ -117,6 +122,8 @@ class PowerManagerData:
     predictive_headroom_kwh: float | None = None
     predictive_charge_inhibit: bool | None = None
     predictive_reason: str = "forecast_unavailable"
+    energy_dashboard_summary: str = "Energy Dashboard is not configured."
+    energy_dashboard_missing: tuple[str, ...] = ()
 
 
 class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
@@ -137,26 +144,29 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             port=entry.data[CONF_PORT],
             unit_id=entry.data[CONF_UNIT_ID],
         )
+        self._telemetry_max_age = entry.options.get(
+            CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS
+        )
         self._grid_provider = HomeAssistantEntityGridProvider(
             hass,
             entry.options.get(CONF_GRID_POWER_ENTITY),
             entry.options.get(CONF_PV_POWER_ENTITY),
             entry.options.get(CONF_LOAD_POWER_ENTITY),
-            entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS),
+            self._telemetry_max_age,
             entry.options.get(CONF_GRID_IMPORT_POWER_ENTITY),
             entry.options.get(CONF_GRID_EXPORT_POWER_ENTITY),
         )
         self._price_provider = HomeAssistantEntityPriceProvider(
             hass,
             entry.options.get(CONF_PRICE_ENTITY),
-            entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS),
+            self._telemetry_max_age,
             entry.options.get(CONF_STATIC_PRICE_PER_KWH),
         )
         self._forecast_provider = HomeAssistantEntityForecastProvider(
             hass,
             entry.options.get(CONF_REMAINING_PV_FORECAST_ENTITY),
             entry.options.get(CONF_REMAINING_LOAD_FORECAST_ENTITY),
-            entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS),
+            self._telemetry_max_age,
             entry.options.get(CONF_LOAD_POWER_ENTITY),
             entry.options.get(CONF_ESTIMATE_REMAINING_LOAD, False),
             int(entry.options.get(CONF_LOAD_FORECAST_HISTORY_DAYS, 7)),
@@ -164,10 +174,14 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         self._inverter_sources: tuple[InverterSourceConfig, ...] = parse_inverter_sources(
             entry.options.get(CONF_INVERTERS)
         )
+        self._effective_inverter_sources = self._inverter_sources
         self._inverter_provider = HomeAssistantEntityInverterProvider(
             hass,
             self._inverter_sources,
-            entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS),
+            self._telemetry_max_age,
+        )
+        self._energy_dashboard_provider = HomeAssistantEnergyDashboardProvider(
+            hass, entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS)
         )
         self._speedwire_monitor = ExternalControllerMonitor(self._config.host)
         self._speedwire_task: asyncio.Task[None] | None = None
@@ -219,7 +233,7 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
     @property
     def inverter_sources(self) -> tuple[InverterSourceConfig, ...]:
         """Return configured per-inverter telemetry sources."""
-        return self._inverter_sources
+        return self._effective_inverter_sources
 
     async def stop_speedwire_monitor(self) -> None:
         """Stop passive multicast observation during unload."""
@@ -319,26 +333,43 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         else:
             issue_registry.async_delete_issue(self.hass, DOMAIN, "firmware_unavailable")
 
+        dashboard_runtime = await self._read_energy_dashboard()
         grid_state = (
             await self._grid_provider.read_grid_state()
             if self._grid_provider.configured
-            else None
+            else dashboard_runtime.grid
         )
         price_state = (
             await self._price_provider.read_price_state()
             if self._price_provider.configured
-            else None
+            else dashboard_runtime.price
         )
         forecast_state = (
             await self._forecast_provider.read_forecast_state()
             if self._forecast_provider.configured
-            else None
+            else dashboard_runtime.forecast
         )
-        inverter_states = await self._inverter_provider.read_states()
+        if self._inverter_sources:
+            self._effective_inverter_sources = self._inverter_sources
+            inverter_states = await self._inverter_provider.read_states()
+        else:
+            self._effective_inverter_sources = dashboard_runtime.configuration.inverter_sources
+            inverter_provider = HomeAssistantEntityInverterProvider(
+                self.hass,
+                self._effective_inverter_sources,
+                self._config_max_age,
+            )
+            inverter_states = await inverter_provider.read_states()
         if grid_state is None:
             grid_state = _aggregate_inverter_grid(inverter_states)
+        elif grid_state.pv_power_w is None:
+            inverter_grid = _aggregate_inverter_grid(inverter_states)
+            if inverter_grid is not None:
+                grid_state = replace(grid_state, pv_power_w=inverter_grid.pv_power_w)
+        forecast_state = _merge_forecasts(forecast_state, dashboard_runtime.forecast)
         forecast_state = _merge_forecasts(
-            forecast_state, _aggregate_inverter_forecast(self._inverter_sources, inverter_states)
+            forecast_state,
+            _aggregate_inverter_forecast(self._effective_inverter_sources, inverter_states),
         )
         energy_state = EnergyState(
             timestamp=battery_state.timestamp,
@@ -379,7 +410,41 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
                 if predictive_plan
                 else self._predictive_reason(forecast_state)
             ),
+            energy_dashboard_summary=dashboard_runtime.configuration.summary,
+            energy_dashboard_missing=dashboard_runtime.configuration.missing,
         ))
+
+    @property
+    def _config_max_age(self) -> int:
+        """Return the configured telemetry freshness limit."""
+        return self._telemetry_max_age
+
+    async def _read_energy_dashboard(self) -> EnergyDashboardRuntime:
+        """Read optional Energy Dashboard inputs without masking Sunny Island health."""
+        try:
+            runtime = await self._energy_dashboard_provider.read()
+            if runtime.configuration.configured and not self._forecast_provider.configured:
+                missing = (
+                    *runtime.configuration.missing,
+                    "PowerManager: no whole-home remaining-load forecast",
+                )
+                runtime = replace(
+                    runtime,
+                    configuration=replace(
+                        runtime.configuration,
+                        missing=missing,
+                        summary=f"{runtime.configuration.summary}\n- Missing: {missing[-1]}",
+                    ),
+                )
+            return runtime
+        except Exception as error:  # Dashboard integration is an optional adapter.
+            _LOGGER.warning("Energy Dashboard inputs unavailable: %s", error)
+            return EnergyDashboardRuntime(
+                EnergyDashboardConfiguration(summary="Energy Dashboard is unavailable."),
+                None,
+                None,
+                None,
+            )
 
     def _predictive_plan(
         self, battery_state: BatteryState, forecast_state: ForecastState | None

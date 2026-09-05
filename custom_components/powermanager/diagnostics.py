@@ -29,6 +29,8 @@ async def async_get_config_entry_diagnostics(
         "speedwire_source_count": len(data.speedwire_sources),
         "speedwire_external_sources": list(data.speedwire_external_sources),
         "speedwire_observation_state": data.speedwire_observation_state,
+        "energy_dashboard_summary": data.energy_dashboard_summary,
+        "energy_dashboard_missing": list(data.energy_dashboard_missing),
         "control_ownership_clear": data.control_ownership_clear,
         "simulated_rule_id": data.simulated_rule_id,
         "simulated_target_power_w": data.simulated_target_power_w,

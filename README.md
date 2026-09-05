@@ -99,6 +99,14 @@ entity pickers: set the number of profiles and complete one role-aware form per
 inverter. The YAML field remains available for advanced import/export. Each
 source is read from existing Home Assistant entities:
 
+When the Home Assistant Energy Dashboard is configured, PowerManager imports its
+grid, solar, battery, tariff, and solar-forecast topology automatically. The
+options form prints every imported PV source and any missing instantaneous
+sensor. It refuses to save an incomplete dashboard topology until the missing
+source is supplied manually. A whole-home remaining-load forecast (or a
+whole-home load sensor plus historical estimation) is also required because
+the Energy Dashboard has no household load forecast.
+
 ```yaml
 inverters:
   - id: sunnyboy_main
