@@ -7,6 +7,7 @@ from powermanager_core.modbus import (
     RegisterDataType,
     RegisterDefinition,
     RegisterTable,
+    decode_firmware_version,
     decode_registers,
 )
 
@@ -43,3 +44,8 @@ class RegisterDecoderTest(unittest.TestCase):
                 definition(RegisterDataType.S32, invalid_values=frozenset({0x80000000})),
             )
         )
+
+    def test_sma_firmware_format_is_decoded(self) -> None:
+        self.assertEqual(decode_firmware_version(0x01050A04), "01.05.10.R")
+        self.assertEqual(decode_firmware_version(0x12000305), "12.00.3.S")
+        self.assertIsNone(decode_firmware_version(0x1A050A04))

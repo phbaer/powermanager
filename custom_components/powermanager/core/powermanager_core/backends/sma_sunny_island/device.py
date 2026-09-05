@@ -10,7 +10,7 @@ from typing import Protocol
 from ...contracts import BatteryBackend
 from ...exceptions import UnsupportedDeviceError
 from ...modbus.client import PymodbusTcpReadOnlyTransport
-from ...modbus.decoder import decode_registers
+from ...modbus.decoder import decode_firmware_version, decode_registers
 from ...modbus.registers import RegisterDataType, RegisterDefinition, RegisterTable
 from ...models import BatteryState, CommunicationState, DeviceInfo
 
@@ -19,6 +19,18 @@ DEVICE_TYPE = RegisterDefinition(
     address=30053,
     table=RegisterTable.INPUT,
     data_type=RegisterDataType.U32,
+    invalid_values=frozenset({0xFFFFFFFF}),
+)
+SERIAL_NUMBER = RegisterDefinition(
+    "serial_number", 30057, RegisterTable.INPUT, RegisterDataType.U32,
+    invalid_values=frozenset({0xFFFFFFFF}),
+)
+FIRMWARE = RegisterDefinition(
+    "firmware", 30061, RegisterTable.INPUT, RegisterDataType.U32,
+    invalid_values=frozenset({0xFFFFFFFF}),
+)
+FIRMWARE_SECONDARY = RegisterDefinition(
+    "firmware_secondary", 30063, RegisterTable.INPUT, RegisterDataType.U32,
     invalid_values=frozenset({0xFFFFFFFF}),
 )
 STATUS = RegisterDefinition(
@@ -103,11 +115,34 @@ class SunnyIslandClient(BatteryBackend):
         device_type = decode_registers(registers, DEVICE_TYPE)
         if not isinstance(device_type, int) or device_type not in SUPPORTED_DEVICE_TYPES:
             raise UnsupportedDeviceError(f"Unsupported SMA device type: {device_type!r}")
+        serial = decode_registers(
+            await self._transport.read_input_registers(
+                SERIAL_NUMBER.pdu_address, SERIAL_NUMBER.width
+            ),
+            SERIAL_NUMBER,
+        )
+        firmware = decode_firmware_version(
+            decode_registers(
+                await self._transport.read_input_registers(FIRMWARE.pdu_address, FIRMWARE.width),
+                FIRMWARE,
+            )
+        )
+        secondary_firmware = decode_firmware_version(
+            decode_registers(
+                await self._transport.read_input_registers(
+                    FIRMWARE_SECONDARY.pdu_address, FIRMWARE_SECONDARY.width
+                ),
+                FIRMWARE_SECONDARY,
+            )
+        )
+        firmware_version = firmware or secondary_firmware
+        if firmware and secondary_firmware:
+            firmware_version = f"{firmware} / {secondary_firmware}"
         return DeviceInfo(
             backend="sma_sunny_island",
             model=SUPPORTED_DEVICE_TYPES[device_type],
-            serial_number=None,
-            firmware_version=None,
+            serial_number=str(serial) if serial is not None else None,
+            firmware_version=firmware_version,
             device_type=device_type,
             supported=True,
         )

@@ -7,6 +7,8 @@ from collections.abc import Sequence
 from ..exceptions import RegisterDecodeError
 from .registers import RegisterDataType, RegisterDefinition
 
+_FIRMWARE_RELEASE_TYPES = {0: "N", 1: "E", 2: "A", 3: "B", 4: "R", 5: "S"}
+
 
 def decode_registers(
     registers: Sequence[int], definition: RegisterDefinition
@@ -34,3 +36,22 @@ def decode_registers(
             raw -= 1 << bits
     value = raw * definition.scale
     return int(value) if definition.scale == 1 else value
+
+
+def decode_firmware_version(raw: int | None) -> str | None:
+    """Decode SMA's packed FW DWORD into ``major.minor.build.release``."""
+    if raw is None or not 0 <= raw <= 0xFFFFFFFF:
+        return None
+    major_byte, minor_byte, build, release_code = raw.to_bytes(4, "big")
+    if any(
+        nibble > 9
+        for nibble in (
+            major_byte >> 4,
+            major_byte & 0x0F,
+            minor_byte >> 4,
+            minor_byte & 0x0F,
+        )
+    ):
+        return None
+    release = _FIRMWARE_RELEASE_TYPES.get(release_code, str(release_code))
+    return f"{major_byte:02x}.{minor_byte:02x}.{build}.{release}"

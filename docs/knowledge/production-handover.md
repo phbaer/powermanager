@@ -78,8 +78,9 @@ restart without relying on packages installed by the development environment.
   traffic alongside scheduled Modbus updates.
 - [ ] Validate multicast reception/recovery on the deployment network; document
   interface/relay limitations and identify the Home Manager generation if required.
-- [ ] Read stable serial and firmware identity; migrate host-based identity without
-  losing existing entities/history. Both identity fields are currently None.
+- [x] Read stable serial and firmware identity from the documented SI registers
+  `30057`, `30061`, and `30063`; decode SMA's packed firmware format. Host-based
+  identity migration and physical firmware support validation remain outstanding.
 - [ ] Establish firmware support and unsupported/unavailable-state reporting.
 - [ ] Require tests, Ruff, hassfest, and HACS validation before publishing.
   Currently the release job depends only on its HACS validation job.

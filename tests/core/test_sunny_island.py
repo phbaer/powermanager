@@ -27,6 +27,12 @@ class FakeTransport:
         assert count == 2
         if address == 30053:
             return self.registers
+        if address == 30057:
+            return [0x1234, 0x5678]
+        if address == 30061:
+            return [0x0105, 0x0A04]
+        if address == 30063:
+            return [0x0201, 0x0004]
         return [0, 307]
 
 
@@ -40,6 +46,8 @@ class SunnyIslandTest(unittest.TestCase):
 
         info, state = asyncio.run(read())
         self.assertEqual(info.model, "Sunny Island SI4.4M-12")
+        self.assertEqual(info.serial_number, str(0x12345678))
+        self.assertEqual(info.firmware_version, "01.05.10.R / 02.01.0.R")
         self.assertIs(state.communication_state, CommunicationState.ONLINE)
 
     def test_rejects_unsupported_device_identity(self) -> None:

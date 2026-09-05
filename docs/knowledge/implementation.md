@@ -34,10 +34,11 @@ unitless values are rejected.
 
 ## CI validation
 
-Configured workflows do not prove that a release passed validation. The release
-job does not yet require the separate tests and hassfest workflows to pass.
-See the [production handover](production-handover.md) for acceptance gates
-and current passive observation behavior.
+The HACS release job now gates packaging on the repository tests, Ruff, HACS
+validation, and hassfest. A successful workflow run is still not a substitute
+for the required physical monitoring soak or hardware commissioning. See the
+[production handover](production-handover.md) for acceptance gates and current
+passive observation behavior.
 
 GitHub Actions run core tests and Ruff, HACS validation, and Home Assistant
 `hassfest`. `hassfest` is scheduled daily as well as on integration changes.
