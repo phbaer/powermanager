@@ -82,6 +82,17 @@ or proof of exclusive ownership. Other SMA devices can trigger it. The listener
 checks the common SMA prefix, not authenticated identity. Relayed packets identify
 the relay as sender. Silence must never authorize control.
 
+## Operator topology confirmation (2026-09-05)
+
+The operator confirms that the installation is a single-phase system. The SMA
+Sunny Home Manager is the only intended active-power controller and is currently
+back in service; PowerManager must not compete with it. The Sunny Island's
+existing external-setpoint, fallback, and timeout configuration must remain
+unchanged. There is no dedicated emergency-stop device; the available physical
+isolation is the device's LS circuit breaker and RCD. These provide a coarse
+operator isolation procedure, not a supervised inverter stop or proof that the
+installation is safe to switch under load.
+
 ## Required execution order
 
 Complete each acceptance gate before advancing to its dependent stage.
@@ -250,6 +261,10 @@ failure tests.
   and physical emergency-stop/rollback procedure with the operator.
 - [ ] Verify sign, scaling, limits, persistence, activation, and fallback against
   applicable SMA documentation and observed behavior.
+- [x] Record the operator-confirmed single-phase topology, sole Home Manager
+  ownership, and the requirement to preserve existing Sunny Island settings.
+- [ ] Document and rehearse the LS/RCD isolation procedure as the physical
+  emergency action before any supervised PowerManager write test.
 - [ ] Record baseline settings and explicitly decide whether the observed
   300-second timeout and fallback power are acceptable.
 - [ ] Obtain authorization for each specific live operation or parameter change
