@@ -41,6 +41,13 @@ completed using the reviewed archive: the old directory was backed up at
 the entry loaded 31 entities with no PowerManager-specific startup or polling
 errors in the post-restart log.
 
+After the Home Manager was disconnected, a 30-second read-only capture on the
+LAN-side host interface `10.0.1.254` received no valid frames for
+`239.12.255.254:9522`. This is a negative observation for that interface and
+interval, not proof that every broadcaster is absent. The HA warning entity now
+keeps observed and external sender addresses in its attributes so a later frame
+identifies the source directly.
+
 Completed passive detection improvements:
 
 - Modbus polls preserve observed sources and possible-controller warnings.
