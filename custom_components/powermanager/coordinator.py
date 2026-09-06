@@ -342,6 +342,11 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         """Return the last bounded-session error for diagnostics."""
         return self._active_control_last_error
 
+    @property
+    def predictive_control_enabled(self) -> bool:
+        """Return whether forecast planning is selected for scheduled control."""
+        return self._predictive_control_enabled
+
     async def start_active_control(self, power_w: float, duration_seconds: int) -> None:
         """Start one explicit, bounded command session.
 
