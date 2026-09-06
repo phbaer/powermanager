@@ -94,9 +94,9 @@ Completed passive detection improvements:
   was already detected, in which case it stays on. Its observation_state attribute
   and diagnostics expose health separately.
 - The Speedwire warning entity exposes observed sender IPv4 addresses and the
-  subset classified as external; diagnostics expose the external subset so local
-  debugging can identify a broadcaster. The configured inverter host remains
-  redacted from diagnostics.
+  subset classified as external; dedicated source-count/source-address sensors
+  and diagnostics expose the complete list so local debugging can identify a
+  broadcaster. The configured inverter host remains redacted from diagnostics.
 - An external sender address is not a device-role determination. A future verified
   source inventory may classify a device as telemetry-only, control-capable, or
   unknown and expose its normalized measurements as HA sensors. Unknown and

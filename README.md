@@ -18,7 +18,8 @@ their identity or exclusive control ownership. Warnings persist across polls and
 listener retries. The warning's `observation_state` attribute distinguishes unknown,
 offline, stale, and online observation. Its `observed_sources` and
 `external_sources` attributes show the IPv4 senders seen on Speedwire; diagnostics
-include the external list for identifying a broadcaster on the local LAN.
+include the complete list for identifying a broadcaster on the local LAN. The
+device also exposes separate source-count and source-address sensors.
 Failed listeners retry after 30 seconds; traffic expires after 300 seconds in the
 HA coordinator. Silence never grants ownership eligibility. Reload starts a new
 observation history. No indicator enables writes.
@@ -68,6 +69,12 @@ diagnostics. It also reads the Sunny Island serial number and packed firmware
 identity for stable device metadata. These indicators do not authorize control;
 supervised hardware commissioning is still required before any command adapter
 can be used.
+
+The firmware identity is a commissioning input, not a prerequisite for ordinary
+read-only telemetry. If Modbus registers 30061/30063 return SMA's unavailable
+value (`0xFFFFFFFF`) or an unknown packed format, the firmware sensor reports
+`unknown` and active control remains blocked until the installed firmware and
+its behavior are confirmed manually.
 
 The integration includes explicit `powermanager.start_control` and
 `powermanager.stop_control` services for a bounded manual session. They remain

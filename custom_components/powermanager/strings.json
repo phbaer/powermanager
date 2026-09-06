@@ -167,7 +167,8 @@
       "control_block_reason": {"name": "Control block reason"},
       "active_control_power": {"name": "Active-control target power"},
       "active_control_last_error": {"name": "Active-control last error"},
-      "speedwire_source_count": {"name": "Observed SMA Speedwire sources"},
+      "speedwire_source_count": {"name": "Observed SMA SpeedWire source count"},
+      "speedwire_source_addresses": {"name": "Observed SMA SpeedWire source addresses"},
       "energy_dashboard_summary": {"name": "Energy Dashboard telemetry readiness"},
       "predictive_target_power": {"name": "Predictive target power"},
       "predictive_target_soc": {"name": "Predictive target SoC"},
@@ -194,7 +195,7 @@
     },
     "firmware_unavailable": {
       "title": "Sunny Island firmware identity unavailable",
-      "description": "The device type was read, but firmware identity could not be decoded. Keep PowerManager monitor-only until firmware support is confirmed."
+      "description": "The Sunny Island answered firmware registers 30061/30063 with an unavailable or undecodable value. Firmware identity is required for the active-control commissioning gate; keep PowerManager monitor-only until the installed firmware and behavior are confirmed."
     }
   }
 }

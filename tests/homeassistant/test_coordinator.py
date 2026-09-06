@@ -230,6 +230,11 @@ async def test_speedwire_count_sensor_exposes_sender_addresses(coordinator):
         "observed_sources": ["127.0.0.2"],
         "external_sources": ["127.0.0.2"],
     }
+    address_description = next(
+        item for item in SENSORS if item.key == "speedwire_source_addresses"
+    )
+    address_entity = PowerManagerSensor(coordinator, Mock(unique_id="test"), address_description)
+    assert address_entity.native_value == "127.0.0.2"
 
 
 async def test_listener_failure_retries_and_stop_cleans_up(coordinator):

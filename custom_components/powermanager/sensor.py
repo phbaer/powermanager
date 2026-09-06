@@ -313,6 +313,12 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
         value_fn=lambda coordinator: len(coordinator.data.speedwire_sources),
     ),
     PowerManagerSensorDescription(
+        key="speedwire_source_addresses",
+        translation_key="speedwire_source_addresses",
+        value_fn=lambda coordinator: ", ".join(coordinator.data.speedwire_sources)
+        or "none",
+    ),
+    PowerManagerSensorDescription(
         key="energy_dashboard_summary",
         translation_key="energy_dashboard_summary",
         value_fn=lambda coordinator: (
@@ -416,7 +422,10 @@ class PowerManagerSensor(CoordinatorEntity[PowerManagerCoordinator], SensorEntit
                 "charge_inhibit": data.predictive_charge_inhibit,
                 "rule_target_power_w": data.simulated_target_power_w,
             }
-        if self.entity_description.key != "speedwire_source_count":
+        if self.entity_description.key not in {
+            "speedwire_source_count",
+            "speedwire_source_addresses",
+        }:
             if self.entity_description.key != "energy_dashboard_summary":
                 return None
             data = self.coordinator.data
