@@ -4,7 +4,7 @@ start_control:
   fields:
     power_w:
       name: Battery power
-      description: PowerManager convention: positive charges and negative discharges.
+      description: "PowerManager convention: positive charges and negative discharges."
       required: true
       selector:
         number:
