@@ -32,7 +32,7 @@
           "estimate_remaining_load": "Estimate remaining load from history",
           "control_ownership_confirmed": "Confirm PowerManager control ownership",
           "active_control_enabled": "Enable PowerManager active control",
-          "active_control_scheduled": "Allow scheduled rule control",
+          "active_control_scheduled": "Allow scheduled PowerManager control",
           "active_control_single_phase_confirmed": "Confirm single-phase Sunny Island topology",
           "active_control_firmware_confirmed": "Confirm firmware and Modbus behavior",
           "active_control_ls_rcd_confirmed": "Confirm supervised LS/RCD isolation procedure",
@@ -53,7 +53,8 @@
           "predictive_reserve_soc_percent": "Predictive reserve SoC (%)",
           "predictive_export_capacity_kwh": "Predictive export capacity (kWh)",
           "predictive_max_charge_power_w": "Predictive maximum charge power (W)",
-          "predictive_grid_charge_allowed": "Allow predictive grid charging"
+          "predictive_grid_charge_allowed": "Allow predictive grid charging",
+          "predictive_control_enabled": "Enable predictive scheduled control"
         },
         "data_description": {
           "scan_interval": "Seconds between read-only Sunny Island polls.",
@@ -81,12 +82,13 @@
           "rules_yaml": "Versioned YAML rules. Keep enabled: false for simulation; enabled: true is accepted only with scheduled active control and every commissioning gate.",
           "inverters_yaml": "Advanced YAML list of role-specific inverter entities. Use the entity-picker flow above for sensor ID completion. Sources are read-only and do not enable control.",
           "inverter_profile_count": "Set a number to configure inverter sources with native Home Assistant entity pickers. Leave at zero to use the advanced YAML field.",
-          "predictive_capacity_kwh": "Usable battery capacity assumed by the shadow planner.",
-          "predictive_end_soc_percent": "Target SoC at the next local midnight; this is a simulation target only.",
-          "predictive_reserve_soc_percent": "Minimum SoC reserve used by the shadow planner.",
+          "predictive_capacity_kwh": "Usable battery capacity assumed by the planner.",
+          "predictive_end_soc_percent": "Target SoC at the next local midnight; the Sunny Island remains the SoC authority.",
+          "predictive_reserve_soc_percent": "Minimum SoC reserve used by the planner.",
           "predictive_export_capacity_kwh": "Forecast energy that can be exported before the planner preserves additional headroom.",
-          "predictive_max_charge_power_w": "Upper bound for a future recommendation; no command is sent.",
-          "predictive_grid_charge_allowed": "Allow the shadow planner to recommend grid charging when forecast energy cannot meet the target."
+          "predictive_max_charge_power_w": "Upper bound for planner recommendations and scheduled commands.",
+          "predictive_grid_charge_allowed": "Allow the shadow planner to recommend grid charging when forecast energy cannot meet the target.",
+          "predictive_control_enabled": "Use the forecast planner for scheduled control. It remains gated by active-control commissioning and never permits charging above measured PV surplus."
         }
       },
       "inverter": {
@@ -126,6 +128,7 @@
       "invalid_predictive_targets": "The predictive reserve SoC cannot exceed the end-of-day target."
       ,"active_control_confirmations_required": "Active control requires ownership, single-phase topology, firmware behavior, and LS/RCD procedure confirmations.",
       "scheduled_control_requires_enablement": "Scheduled control requires active control to be enabled first.",
+      "predictive_control_requires_scheduled": "Predictive scheduled control requires scheduled active control to be enabled first.",
       "invalid_telemetry_sources": "Reporting-only Speedwire sources must be comma-separated host or IPv4 addresses."
     }
   },

@@ -158,23 +158,25 @@ power is an optional signed value for battery-capable or hybrid sources. Grid
 import/export and household load forecasts remain site-level inputs; they are
 never inferred from PV inverter output and are not duplicated per inverter.
 When no site PV forecast is configured, all configured PV forecasts must be
-fresh before they are combined for simulation and the predictive shadow planner.
+fresh before they are combined for simulation and the predictive planner.
 The sources remain read-only and do not create an inverter write path.
 
 Simulation-only rules can be edited as versioned YAML in the integration
 options. PowerManager exposes the currently matching simulated rule and its
 requested target power, but never sends that target to the Sunny Island.
 
-The core also includes a predictive shadow planner that accounts for usable
-capacity, reserve and end-of-day targets, forecast uncertainty, export capacity,
-and charge limits. It produces explainable recommendations and deterministic
-replay and SoC/reserve outcome results for future backtesting; it is not connected to Home Assistant
-write control or any inverter write path. When forecast options are configured,
-Home Assistant exposes the recommendation and its reason as shadow sensors.
+The core also includes a predictive planner that accounts for usable capacity,
+reserve and end-of-day targets, forecast uncertainty, export capacity, current
+PV surplus, and charge limits. It produces explainable recommendations and
+deterministic replay and SoC/reserve outcome results for backtesting. Home
+Assistant exposes the recommendation and its reason as sensors. The
+`predictive_control_enabled` option can promote that recommendation into the
+existing bounded scheduled-control path after all active-control commissioning
+gates pass; it remains disabled by default and never authorizes grid charging
+or a target above measured PV surplus.
 The Sunny Island remains the authority for battery SoC estimation, charging
-phases, and battery protection. Replacing Home Manager also requires promoting
-the planner into a supervised forecast-based SoC scheduling policy; PowerManager
-must send bounded power targets and must never write or invent a battery SoC.
+phases, and battery protection. PowerManager must send bounded power targets and
+must never write or invent a battery SoC.
 
 Instead of supplying an expected-load forecast entity, PowerManager can estimate
 the remaining load until local midnight from the selected whole-home load-power

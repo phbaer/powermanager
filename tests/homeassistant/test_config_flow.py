@@ -111,6 +111,24 @@ async def test_options_flow_requires_all_confirmations_before_active_enablement(
     }
 
 
+async def test_options_flow_requires_scheduled_control_for_predictive_activation() -> None:
+    """The planner cannot bypass the explicit scheduled-control gate."""
+    flow = PowerManagerOptionsFlow(Mock(options={}))
+    result = await flow.async_step_init()
+    data = result["data_schema"](
+        {
+            "scan_interval": 30,
+            "telemetry_max_age": 120,
+            "predictive_control_enabled": True,
+        }
+    )
+    with patch.object(flow, "async_show_form", return_value={"errors": {}}) as show_form:
+        await flow.async_step_init(data)
+    assert show_form.call_args.kwargs["errors"] == {
+        "base": "predictive_control_requires_scheduled"
+    }
+
+
 async def test_options_flow_allows_enabled_rules_only_for_scheduled_control() -> None:
     """Executable rules require every explicit active-control confirmation."""
     flow = PowerManagerOptionsFlow(Mock(options={}))

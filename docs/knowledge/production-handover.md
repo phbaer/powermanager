@@ -54,8 +54,8 @@ Completed passive detection improvements:
 - Modbus polls preserve observed sources and possible-controller warnings.
 - Every observation update immediately recomputes ownership eligibility.
 - Health distinguishes offline, unknown, online, and stale. Listening without
-  traffic is unknown. Traffic expires after 120 seconds, checked during five-second
-  receive timeouts. Future timestamps are stale.
+  traffic is unknown. Traffic expires after 300 seconds, checked during
+  five-second receive timeouts. Future timestamps are stale.
 - Eligibility requires explicit confirmation, a running listener, fresh traffic,
   and no observed unknown sender. A manually entered list can classify verified
   reporting-only senders (such as a PV inverter) for telemetry; it does not
@@ -64,7 +64,8 @@ Completed passive detection improvements:
   Recovery requires new traffic before reporting online.
 - IPv4 hostname resolution excludes the inverter's resolved addresses.
 - Possible competitors remain latched across socket retries for the monitor's
-  lifetime. Reload resets observation history to unknown.
+  lifetime. A listener reconnect no longer discards the last received timestamp;
+  reload still resets observation history to unknown.
 - Packet updates notify entities without resetting Modbus polling or masking
   a failed battery read.
 - The warning is unknown during silence/failure/staleness unless a competitor
@@ -333,9 +334,12 @@ their safety boundaries.
   constraints, forecast uncertainty, and remaining time. The core planner is
   deterministic and side-effect-free, and its output remains safety-validated.
 - [x] Plan headroom across the day instead of only fixed surplus thresholds;
-  the planner returns explicit headroom and charge-inhibit semantics. It is
-  now exposed through read-only HA shadow sensors and diagnostics, but cannot
-  write an inverter target.
+  the planner returns explicit headroom and charge-inhibit semantics and uses
+  current PV surplus when a charge is needed.
+- [x] Add an explicit `predictive_control_enabled` option. When selected with
+  the existing scheduled-control gates, the planner is the charging policy;
+  every recommendation is revalidated with fresh telemetry and bounded by
+  measured PV surplus. Grid charging is disabled on this path.
 - [ ] Reproduce Home Manager's forecast-based SoC scheduling before transferring
   sole control ownership. The Sunny Island remains authoritative for SoC
   estimation, charging phases, BMS limits, and battery protection; PowerManager
@@ -343,7 +347,8 @@ their safety boundaries.
 - [ ] Backtest recorded days with poor/missing forecasts, tariff changes, and
   seasonal/DST cases; compare reserve and end-of-day outcomes. The reusable
   backtest primitive exists, but no recorded deployment days have been loaded.
-- [ ] Complete a documented shadow-mode period before supervised activation.
+- [ ] Complete a documented shadow-mode period before supervised activation and
+  record the first supervised planner sessions after activation.
 - [ ] Verify Speedwire measurement mappings if direct meter telemetry is needed;
   existing HA grid entities can remain an alternative. Add verified control-frame
   detection only as a diagnostic and immediate inhibit path; never use the lack of

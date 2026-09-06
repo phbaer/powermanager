@@ -62,6 +62,20 @@ def test_planner_bounds_grid_charge_by_horizon_and_reported_limit() -> None:
     assert plan.target_power_w == 1200
 
 
+def test_planner_uses_current_pv_surplus_without_grid_charging() -> None:
+    plan = plan_predictive_charge(
+        _inputs(
+            battery_soc_percent=40.0,
+            remaining_pv_kwh=2.0,
+            remaining_load_kwh=2.0,
+            available_pv_surplus_w=1800.0,
+            grid_charge_allowed=False,
+        )
+    )
+    assert plan.target_power_w == 1800
+    assert plan.reason == "charge_from_pv_surplus"
+
+
 def test_planner_accounts_for_export_capacity_and_uncertainty() -> None:
     plan = plan_predictive_charge(
         _inputs(export_capacity_kwh=4.0, forecast_uncertainty_kwh=0.0)

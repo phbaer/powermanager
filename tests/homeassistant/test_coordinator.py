@@ -205,7 +205,7 @@ async def test_unknown_and_stale_observation_are_visible(coordinator):
         "observed_sources": ["127.0.0.1"],
         "external_sources": [],
     }
-    monitor.last_received_at -= timedelta(seconds=121)
+    monitor.last_received_at -= timedelta(seconds=301)
     coordinator._publish_observation()
     assert entity.is_on is None
     assert entity.extra_state_attributes == {

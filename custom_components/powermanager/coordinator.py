@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import socket
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, time, timedelta
@@ -36,6 +37,7 @@ from .const import (
     CONF_LOAD_POWER_ENTITY,
     CONF_PORT,
     CONF_PREDICTIVE_CAPACITY_KWH,
+    CONF_PREDICTIVE_CONTROL_ENABLED,
     CONF_PREDICTIVE_END_SOC_PERCENT,
     CONF_PREDICTIVE_EXPORT_CAPACITY_KWH,
     CONF_PREDICTIVE_GRID_CHARGE_ALLOWED,
@@ -58,6 +60,7 @@ from .const import (
     DEFAULT_PREDICTIVE_MAX_CHARGE_POWER_W,
     DEFAULT_PREDICTIVE_RESERVE_SOC_PERCENT,
     DEFAULT_SCAN_INTERVAL_SECONDS,
+    DEFAULT_SPEEDWIRE_MAX_AGE_SECONDS,
     DEFAULT_TELEMETRY_MAX_AGE_SECONDS,
     DOMAIN,
     MAX_ACTIVE_CONTROL_MAX_DURATION_SECONDS,
@@ -203,7 +206,13 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         self._energy_dashboard_provider = HomeAssistantEnergyDashboardProvider(
             hass, entry.options.get(CONF_TELEMETRY_MAX_AGE, DEFAULT_TELEMETRY_MAX_AGE_SECONDS)
         )
-        self._speedwire_monitor = ExternalControllerMonitor(self._config.host)
+        self._speedwire_monitor = ExternalControllerMonitor(
+            self._config.host,
+            max_age_seconds=max(
+                DEFAULT_SPEEDWIRE_MAX_AGE_SECONDS,
+                int(self._telemetry_max_age),
+            ),
+        )
         self._speedwire_task: asyncio.Task[None] | None = None
         self._poll_seconds = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS)
         self._backoff = ExponentialBackoff(self._poll_seconds, MAX_SCAN_INTERVAL_SECONDS)
@@ -295,6 +304,9 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         )
         self._predictive_grid_charge_allowed = bool(
             entry.options.get(CONF_PREDICTIVE_GRID_CHARGE_ALLOWED, False)
+        )
+        self._predictive_control_enabled = bool(
+            entry.options.get(CONF_PREDICTIVE_CONTROL_ENABLED, False)
         )
 
     def start_speedwire_monitor(self) -> None:
@@ -481,7 +493,6 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
                     )
                     async with SpeedwireListener() as listener:
                         self._speedwire_monitor.listening = True
-                        self._speedwire_monitor.last_received_at = None
                         self._publish_observation()
                         while True:
                             try:
@@ -621,7 +632,7 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             energy_state, at=battery_state.timestamp, enabled=True
         )
         intent = decision.intent
-        predictive_plan = self._predictive_plan(battery_state, forecast_state)
+        predictive_plan = self._predictive_plan(battery_state, forecast_state, grid_state)
         result = self._with_observation(PowerManagerData(
             device_info=device_info,
             battery_state=battery_state,
@@ -653,31 +664,76 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             energy_dashboard_missing=dashboard_runtime.configuration.missing,
         ))
         if self._active_control_scheduled:
-            await self._reconcile_scheduled_control(result, decision)
+            await self._reconcile_scheduled_control(result, decision, predictive_plan)
         return result
 
     async def _reconcile_scheduled_control(
-        self, data: PowerManagerData, decision
+        self,
+        data: PowerManagerData,
+        decision,
+        predictive_plan: PredictivePlan | None,
     ) -> None:
-        """Run rules through the same bounded session used by manual control."""
+        """Run the selected policy through the same bounded session as manual control."""
         if self.data is None:
             return
-        if not data.active_control_available or not decision.accepted or decision.intent is None:
+        intent = decision.intent if decision.accepted else None
+        if self._predictive_control_enabled:
+            intent = None
+            if predictive_plan is not None and predictive_plan.target_power_w > 0:
+                intent, reason = self._validated_predictive_intent(data, predictive_plan)
+                if intent is None:
+                    self._active_control_last_error = reason
+                    _LOGGER.warning("Predictive scheduled control blocked: %s", reason)
+            elif (
+                predictive_plan is not None
+                and decision.accepted
+                and decision.intent is not None
+                and decision.intent.target_power_w < 0
+            ):
+                # The planner never discharges; retain an explicitly matching
+                # discharge rule while the planner is active.
+                intent = decision.intent
+        if not data.active_control_available or intent is None:
             await self.stop_active_control()
             return
-        target = decision.intent.target_power_w
+        target = intent.target_power_w
         if self.active_control_running and self._active_control_power_w == target:
             return
         await self.stop_active_control()
         duration = max(
-            1,
-            min(decision.intent.hold_seconds or 1, self._active_control_max_duration_seconds),
+            1, min(intent.hold_seconds or 1, self._active_control_max_duration_seconds)
         )
         try:
             await self.start_active_control(target, duration)
         except ControlWriteError as error:
             self._active_control_last_error = str(error)
             _LOGGER.warning("Scheduled active-control command blocked: %s", error)
+
+    def _validated_predictive_intent(
+        self, data: PowerManagerData, plan: PredictivePlan
+    ) -> tuple[ControlIntent | None, str | None]:
+        """Turn one forecast recommendation into a freshly validated intent."""
+        intent = ControlIntent(
+            "predictive",
+            plan.target_power_w,
+            min(300, self._active_control_max_duration_seconds),
+            datetime.now(UTC),
+        )
+        valid, reason = validate_intent(
+            intent,
+            data.energy_state,
+            SafetyConfig(
+                max_charge_power_w=min(
+                    self._active_control_max_power_w, self._predictive_max_charge_power_w
+                ),
+                max_discharge_power_w=self._active_control_max_power_w,
+                minimum_soc_percent=self._predictive_reserve_soc_percent,
+                max_energy_age_seconds=self._config_max_age,
+            ),
+            enabled=True,
+            at=datetime.now(UTC),
+        )
+        return (intent, None) if valid else (None, reason)
 
     @property
     def _config_max_age(self) -> int:
@@ -712,7 +768,10 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             )
 
     def _predictive_plan(
-        self, battery_state: BatteryState, forecast_state: ForecastState | None
+        self,
+        battery_state: BatteryState,
+        forecast_state: ForecastState | None,
+        grid_state: GridState | None,
     ) -> PredictivePlan | None:
         """Return a forecast plan for shadow sensors without any actuator call."""
         if (
@@ -723,6 +782,7 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             or battery_state.battery_soc_percent is None
         ):
             return None
+        available_pv_surplus_w = _available_pv_surplus_w(grid_state)
         try:
             return plan_predictive_charge(
                 PredictiveInputs(
@@ -738,7 +798,14 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
                     export_capacity_kwh=self._predictive_export_capacity_kwh,
                     max_charge_power_w=self._predictive_max_charge_power_w,
                     reported_charge_limit_w=battery_state.charge_limit_w,
-                    grid_charge_allowed=self._predictive_grid_charge_allowed,
+                    available_pv_surplus_w=available_pv_surplus_w,
+                    # A live predictive schedule is always PV-surplus-only.
+                    # Keep the legacy option available for shadow analysis,
+                    # but never let it authorize a grid charge.
+                    grid_charge_allowed=(
+                        self._predictive_grid_charge_allowed
+                        and not self._predictive_control_enabled
+                    ),
                 )
             )
         except PredictivePlanningError:
@@ -794,6 +861,19 @@ def _aggregate_inverter_grid(states: tuple[InverterState, ...]) -> GridState | N
             else CommunicationState.UNKNOWN
         ),
     )
+
+
+def _available_pv_surplus_w(grid: GridState | None) -> float | None:
+    """Return the instantaneous PV surplus available to a scheduled plan."""
+    if grid is None or grid.pv_power_w is None or grid.load_power_w is None:
+        return None
+    values = (grid.pv_power_w, grid.load_power_w, grid.grid_power_w)
+    if any(value is not None and not math.isfinite(value) for value in values):
+        return None
+    surplus = max(grid.pv_power_w - grid.load_power_w, 0.0)
+    if grid.grid_power_w is not None:
+        surplus = min(surplus, max(-grid.grid_power_w, 0.0))
+    return surplus
 
 
 def _aggregate_inverter_forecast(

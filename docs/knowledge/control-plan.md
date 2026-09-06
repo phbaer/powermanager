@@ -61,23 +61,24 @@ predicted PV power in watts. Use `forecast_pv_power_above_w` for charge tiers
 that should follow the predicted production peak instead of a fixed clock
 window. If that interval value is unavailable, the condition does not match.
 
-## Predictive shadow planning
+## Predictive planning
 
-`control.predictive` provides a deterministic, side-effect-free planner for
-remaining PV/load energy, forecast uncertainty, usable capacity, reserve and
-end-of-day SoC targets, export capacity, and reported charge limits. It returns
-an explainable target, required energy, headroom, and an explicit charge-inhibit
-flag. A zero target is never interpreted as a generic inverter mode. The
-planner can replay timestamped inputs and report SoC, reserve, grid-energy, and
-curtailment outcomes for backtests. It is not connected to Home Assistant write
-control and remains subordinate to `control.safety`.
+`control.predictive` provides a deterministic planner for remaining PV/load
+energy, forecast uncertainty, usable capacity, reserve and end-of-day SoC
+targets, export capacity, current PV surplus, and reported charge limits. It
+returns an explainable target, required energy, headroom, and an explicit
+charge-inhibit flag. A zero target is never interpreted as a generic inverter
+mode. The planner can replay timestamped inputs and report SoC, reserve,
+grid-energy, and curtailment outcomes for backtests. The HA option
+`predictive_control_enabled` explicitly promotes the recommendation into the
+bounded scheduled path; it is disabled by default and remains subordinate to
+`control.safety`, which rejects stale telemetry and any target above measured
+PV surplus.
 
 The Sunny Island remains the SoC authority: its battery management estimates SoC
 and applies battery charge, discharge, and protection limits. PowerManager must
-not write an SoC value. To replace Home Manager, the predictive planner still
-needs a supervised scheduled-control integration that maintains the configured
-SoC trajectory from forecast and tariff inputs while sending only bounded power
-targets.
+not write an SoC value. Grid charging is not permitted by the scheduled
+planner; it can only use measured PV surplus.
 
 ## Control milestones
 

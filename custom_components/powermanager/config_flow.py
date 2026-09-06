@@ -46,6 +46,7 @@ from .const import (
     CONF_LOAD_POWER_ENTITY,
     CONF_PORT,
     CONF_PREDICTIVE_CAPACITY_KWH,
+    CONF_PREDICTIVE_CONTROL_ENABLED,
     CONF_PREDICTIVE_END_SOC_PERCENT,
     CONF_PREDICTIVE_EXPORT_CAPACITY_KWH,
     CONF_PREDICTIVE_GRID_CHARGE_ALLOWED,
@@ -198,6 +199,9 @@ class PowerManagerOptionsFlow(OptionsFlow):
             )
             active_enabled = bool(user_input.get(CONF_ACTIVE_CONTROL_ENABLED, False))
             active_scheduled = bool(user_input.get(CONF_ACTIVE_CONTROL_SCHEDULED, False))
+            predictive_control_enabled = bool(
+                user_input.get(CONF_PREDICTIVE_CONTROL_ENABLED, False)
+            )
             telemetry_sources = _parse_telemetry_sources(
                 user_input.get(CONF_ACTIVE_CONTROL_TELEMETRY_SOURCES)
             )
@@ -246,6 +250,8 @@ class PowerManagerOptionsFlow(OptionsFlow):
                 errors["base"] = "invalid_predictive_targets"
             if not errors and active_scheduled and not active_enabled:
                 errors["base"] = "scheduled_control_requires_enablement"
+            if not errors and predictive_control_enabled and not active_scheduled:
+                errors["base"] = "predictive_control_requires_scheduled"
             if not errors and active_enabled and not all(
                 bool(user_input.get(key, False))
                 for key in (
@@ -482,6 +488,12 @@ class PowerManagerOptionsFlow(OptionsFlow):
                     CONF_PREDICTIVE_GRID_CHARGE_ALLOWED,
                     default=self._config_entry.options.get(
                         CONF_PREDICTIVE_GRID_CHARGE_ALLOWED, False
+                    ),
+                ): _BOOLEAN_SELECTOR,
+                vol.Optional(
+                    CONF_PREDICTIVE_CONTROL_ENABLED,
+                    default=self._config_entry.options.get(
+                        CONF_PREDICTIVE_CONTROL_ENABLED, False
                     ),
                 ): _BOOLEAN_SELECTOR,
                 vol.Required(

@@ -33,6 +33,7 @@ class PredictiveInputs:
     export_capacity_kwh: float = 0.0
     max_charge_power_w: float = 0.0
     reported_charge_limit_w: float | None = None
+    available_pv_surplus_w: float | None = None
     grid_charge_allowed: bool = False
 
 
@@ -108,6 +109,23 @@ def plan_predictive_charge(inputs: PredictiveInputs) -> PredictivePlan:
             True,
             "preserve_forecast_headroom",
         )
+
+    if required_charge > 0 and inputs.available_pv_surplus_w is not None:
+        available_power = max(inputs.available_pv_surplus_w, 0.0)
+        power = min(inputs.max_charge_power_w, available_power)
+        if inputs.reported_charge_limit_w is not None:
+            power = min(power, inputs.reported_charge_limit_w)
+        if power > 0:
+            return PredictivePlan(
+                inputs.timestamp,
+                power,
+                target_soc,
+                required_charge,
+                forecast_surplus,
+                headroom,
+                False,
+                "charge_from_pv_surplus",
+            )
 
     if required_charge <= absorbable_surplus:
         return PredictivePlan(
@@ -217,6 +235,8 @@ def _validate_inputs(inputs: PredictiveInputs) -> None:
     )
     if inputs.reported_charge_limit_w is not None:
         finite_values += (inputs.reported_charge_limit_w,)
+    if inputs.available_pv_surplus_w is not None:
+        finite_values += (inputs.available_pv_surplus_w,)
     if not all(math.isfinite(value) for value in finite_values):
         raise PredictivePlanningError("planning inputs must be finite")
     if inputs.usable_capacity_kwh <= 0:
@@ -235,6 +255,8 @@ def _validate_inputs(inputs: PredictiveInputs) -> None:
         inputs.reported_charge_limit_w is not None and inputs.reported_charge_limit_w < 0
     ):
         raise PredictivePlanningError("charge limits cannot be negative")
+    if inputs.available_pv_surplus_w is not None and inputs.available_pv_surplus_w < 0:
+        raise PredictivePlanningError("available PV surplus cannot be negative")
 
 
 def _validate_actual_sample(sample: PredictiveBacktestSample) -> None:
