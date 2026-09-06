@@ -85,7 +85,8 @@ control and remains subordinate to `control.safety`.
 - No write is possible when control is disabled or telemetry is stale.
 - A positive charge intent requires fresh PV-surplus telemetry and cannot exceed
   the conservative instantaneous surplus available from PV after household load
-  and measured grid export are considered.
+  and measured grid export are considered. Missing PV or load telemetry blocks
+  charging; grid export alone is not treated as solar proof.
 - Every command has a bounded duration and a fallback target.
 - A watchdog restores normal inverter behavior after missed heartbeats.
 - Manual stop supersedes rules. Where no dedicated emergency stop exists, the

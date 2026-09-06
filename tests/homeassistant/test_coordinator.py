@@ -322,6 +322,8 @@ async def test_coordinator_uses_runtime_for_simulation_decision(coordinator):
         return_value=GridState(
             timestamp=now,
             grid_power_w=-1000,
+            pv_power_w=2000,
+            load_power_w=1000,
             communication_state=CommunicationState.ONLINE,
         )
     )

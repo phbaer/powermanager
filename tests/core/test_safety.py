@@ -155,7 +155,15 @@ def test_safety_rejects_charge_above_current_pv_surplus() -> None:
 def test_safety_requires_pv_surplus_telemetry_for_charge() -> None:
     now = datetime.now(UTC)
     energy = _online_energy(now)
-    energy = EnergyState(timestamp=now, battery=energy.battery)
+    energy = EnergyState(
+        timestamp=now,
+        battery=energy.battery,
+        grid=GridState(
+            timestamp=now,
+            grid_power_w=-1000,
+            communication_state=CommunicationState.ONLINE,
+        ),
+    )
     accepted, reason = validate_intent(
         ControlIntent("rule", 100, 0, now), energy, SafetyConfig(), enabled=True, at=now
     )

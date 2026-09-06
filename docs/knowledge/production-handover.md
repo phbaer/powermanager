@@ -224,7 +224,8 @@ including example-rule holds and local time windows.
 - [x] Enforce maximum charging SoC, reserve plus dynamic discharge floor, and
   reported battery charge limits. Charge intents are also rejected when they
   exceed the conservative instantaneous PV surplus after household load and
-  measured export. Device-specific power-limit mapping and
+  measured export; missing PV or load telemetry blocks charging. Device-specific
+  power-limit mapping and
   operating-state coverage still need validation on the target hardware.
 - [x] Test directly constructed models independently of HA providers/YAML parsing,
   including held intents after telemetry changes.

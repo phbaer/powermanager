@@ -112,8 +112,10 @@ policy can enable a device write.
 Charging is additionally bounded by the current measured PV surplus. A positive
 charge target is rejected when fresh site telemetry cannot prove enough PV power
 is available, or when the target would exceed the conservative minimum of PV
-minus load and measured grid export. The example rules keep their targets at or
-below their export thresholds as an additional policy guard.
+minus load and measured grid export. PV generation and household load telemetry
+are required; grid export alone is not treated as proof that solar energy is
+available. The example rules keep their targets at or below their export
+thresholds as an additional policy guard.
 
 Energy Dashboard interval forecasts also expose the predicted PV power for the
 currently active interval. Rules can use `forecast_pv_power_above_w` to choose

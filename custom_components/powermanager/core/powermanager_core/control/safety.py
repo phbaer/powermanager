@@ -113,12 +113,12 @@ def _available_pv_surplus_w(energy: EnergyState) -> float | None:
     readings = (grid.grid_power_w, grid.pv_power_w, grid.load_power_w)
     if any(value is not None and not math.isfinite(value) for value in readings):
         return None
-    candidates: list[float] = []
-    if grid.pv_power_w is not None and grid.load_power_w is not None:
-        candidates.append(max(grid.pv_power_w - grid.load_power_w, 0.0))
-    if grid.grid_power_w is not None:
-        candidates.append(max(-grid.grid_power_w, 0.0))
-    return min(candidates) if candidates else None
+    if grid.pv_power_w is None or grid.load_power_w is None:
+        return None
+    pv_surplus = max(grid.pv_power_w - grid.load_power_w, 0.0)
+    if grid.grid_power_w is None:
+        return pv_surplus
+    return min(pv_surplus, max(-grid.grid_power_w, 0.0))
 
 
 def _validate_config(config: SafetyConfig) -> str | None:
