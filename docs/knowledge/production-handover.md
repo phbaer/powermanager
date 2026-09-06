@@ -42,6 +42,15 @@ completed using the reviewed archive: the old directory was backed up at
 the entry loaded 31 entities with no PowerManager-specific startup or polling
 errors in the post-restart log.
 
+On 2026-09-06 the reviewed predictive scheduler was deployed to the supervised
+instance. The operator explicitly enabled `predictive_control_enabled` while
+scheduled active control was already enabled, and `predictive_grid_charge_allowed`
+was set false. The deployment was backed up under
+`/config/.powermanager-backups/20260906-063106` and HA was restarted. `ha core
+check` completed successfully; the post-restart log contained no PowerManager,
+SpeedWire, service-schema, or scheduled-command errors. This confirms loading
+and configuration only; it does not replace a supervised live-control test.
+
 After the Home Manager was disconnected, a 30-second read-only capture on the
 LAN-side host interface `10.0.1.254` received no valid frames for
 `239.12.255.254:9522`. This is a negative observation for that interface and
