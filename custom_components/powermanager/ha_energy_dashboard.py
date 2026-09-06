@@ -307,6 +307,9 @@ async def _read_solar_forecast(
     except Exception:  # Optional forecast platforms must never break telemetry.
         return None
     total_wh = 0.0
+    current_power_w = 0.0
+    forecast_sources = 0
+    current_power_sources = 0
     latest = now
     found = False
     for _, config_entry_ids in configuration.solar_forecast_entries:
@@ -320,6 +323,8 @@ async def _read_solar_forecast(
                 continue
             if not forecast:
                 continue
+            forecast_sources += 1
+            samples: list[tuple[datetime, float]] = []
             for timestamp_text, value in forecast.get("wh_hours", {}).items():
                 timestamp = dt_util.parse_datetime(timestamp_text)
                 if timestamp is None:
@@ -328,16 +333,25 @@ async def _read_solar_forecast(
                 if timestamp < now - timedelta(hours=1):
                     continue
                 try:
-                    total_wh += float(value)
+                    energy_wh = float(value)
                 except (TypeError, ValueError):
                     continue
+                total_wh += energy_wh
+                samples.append((timestamp, energy_wh))
                 latest = max(latest, timestamp)
                 found = True
+            current_power = _current_forecast_power_w(samples, now)
+            if current_power is not None:
+                current_power_w += current_power
+                current_power_sources += 1
     if not found:
         return None
     return ForecastState(
         timestamp=latest,
         remaining_pv_kwh=normalize_energy_kwh(total_wh, "Wh"),
+        pv_power_forecast_w=(
+            current_power_w if current_power_sources == forecast_sources else None
+        ),
         communication_state=CommunicationState.ONLINE,
     )
 
@@ -347,3 +361,20 @@ def _state_timestamp(state: Any) -> datetime | None:
         return None
     timestamp = state.last_updated
     return timestamp if timestamp.tzinfo else timestamp.replace(tzinfo=UTC)
+
+
+def _current_forecast_power_w(
+    samples: list[tuple[datetime, float]], now: datetime
+) -> float | None:
+    """Return the forecast power for the interval containing ``now``."""
+    samples.sort()
+    for index, (timestamp, energy_wh) in enumerate(samples):
+        next_timestamp = (
+            samples[index + 1][0]
+            if index + 1 < len(samples)
+            else timestamp + timedelta(hours=1)
+        )
+        interval_hours = (next_timestamp - timestamp).total_seconds() / 3600
+        if interval_hours > 0 and timestamp <= now < next_timestamp:
+            return energy_wh / interval_hours
+    return None

@@ -109,6 +109,13 @@ Separate PV forecasts are summed only when every selected value is fresh. They
 are used only for simulation/policy eligibility; neither forecast data nor a
 policy can enable a device write.
 
+Energy Dashboard interval forecasts also expose the predicted PV power for the
+currently active interval. Rules can use `forecast_pv_power_above_w` to choose
+charge tiers from the forecast itself, so a policy does not assume that noon is
+the daily production peak. If the forecast platform does not provide an active
+interval, that condition remains ineligible and the policy can fall back to
+measured-export rules.
+
 Multiple inverter telemetry sources can be configured with the optional
 `inverters_yaml` option. The options flow also offers native Home Assistant
 entity pickers: set the number of profiles and complete one role-aware form per

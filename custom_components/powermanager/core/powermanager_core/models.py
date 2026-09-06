@@ -79,6 +79,7 @@ class ForecastState:
     remaining_pv_kwh: float | None = None
     expected_remaining_load_kwh: float | None = None
     communication_state: CommunicationState = CommunicationState.UNKNOWN
+    pv_power_forecast_w: float | None = None
 
     @property
     def expected_surplus_kwh(self) -> float | None:

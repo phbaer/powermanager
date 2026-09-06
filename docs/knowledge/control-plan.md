@@ -56,7 +56,10 @@ PV forecast and expected remaining load. Values must have an explicit
 Wh/kWh/MWh unit and are normalized to kWh. A rule can use
 `forecast_surplus_above_kwh`; it is eligible only when both fresh values are
 available. This is a planning/simulation input, not authorization for active
-control.
+control. Energy Dashboard interval forecasts additionally provide the current
+predicted PV power in watts. Use `forecast_pv_power_above_w` for charge tiers
+that should follow the predicted production peak instead of a fixed clock
+window. If that interval value is unavailable, the condition does not match.
 
 ## Predictive shadow planning
 

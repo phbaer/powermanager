@@ -18,6 +18,7 @@ class RuleConditions:
     battery_soc_above_percent: float | None = None
     price_below_per_kwh: float | None = None
     price_above_per_kwh: float | None = None
+    forecast_pv_power_above_w: float | None = None
     forecast_surplus_above_kwh: float | None = None
     between: tuple[time, time] | None = None
 
@@ -118,6 +119,14 @@ def _matches(
             forecast is None
             or forecast.expected_surplus_kwh is None
             or forecast.expected_surplus_kwh <= conditions.forecast_surplus_above_kwh
+        ):
+            return False
+    if conditions.forecast_pv_power_above_w is not None:
+        forecast = energy.forecast
+        if (
+            forecast is None
+            or forecast.pv_power_forecast_w is None
+            or forecast.pv_power_forecast_w <= conditions.forecast_pv_power_above_w
         ):
             return False
     if conditions.price_above_per_kwh is not None:

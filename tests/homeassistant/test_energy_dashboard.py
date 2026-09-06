@@ -1,7 +1,12 @@
 """Energy Dashboard topology import tests."""
 
+from datetime import UTC, datetime
+
 from custom_components.powermanager.core.powermanager_core.inverters import InverterRole
-from custom_components.powermanager.ha_energy_dashboard import _parse_configuration
+from custom_components.powermanager.ha_energy_dashboard import (
+    _current_forecast_power_w,
+    _parse_configuration,
+)
 
 
 def test_energy_dashboard_imports_grid_pv_and_battery_sources() -> None:
@@ -53,3 +58,12 @@ def test_energy_dashboard_reports_missing_real_time_inputs() -> None:
     assert any(item.startswith("Grid:") for item in configuration.missing)
     assert any(item.startswith("PV ") for item in configuration.missing)
     assert "Missing:" in configuration.summary
+
+
+def test_energy_dashboard_forecast_exposes_current_predicted_power() -> None:
+    now = datetime(2026, 6, 1, 12, 30, tzinfo=UTC)
+    samples = [
+        (datetime(2026, 6, 1, 12, tzinfo=UTC), 1800.0),
+        (datetime(2026, 6, 1, 13, tzinfo=UTC), 2400.0),
+    ]
+    assert _current_forecast_power_w(samples, now) == 1800.0

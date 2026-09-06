@@ -168,6 +168,10 @@ restart without relying on packages installed by the development environment.
   fresh grid, PV, and battery telemetry is available, PowerManager supplies a
   derived whole-home load sensor for that estimate; the Energy Dashboard itself
   does not provide the remaining-load forecast.
+- [x] Preserve the active Energy Dashboard PV forecast interval when importing
+  forecasts, exposing its predicted power to the rule engine as
+  `forecast_pv_power_above_w`. Example charging policies can therefore follow
+  the forecast production peak without assuming that noon is always optimal.
 - [ ] Build a fixture-backed Speedwire source inventory and role decoder. Expose
   verified SMA and non-SMA telemetry through normalized HA sensors where a
   protocol adapter exists; retain address, identity confidence, capability, and

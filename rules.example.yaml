@@ -4,24 +4,63 @@ version: 1
 enabled: false
 
 rules:
-  # Charge when the grid is exporting surplus energy and the battery has room.
+  # Variable-tariff profile: use the highest charge target when the market is
+  # cheap and the PV forecast says generation is high now. There is no clock
+  # assumption here; the forecast decides when the high-production window is.
+  - id: charge-cheap-solar-forecast-peak
+    priority: 140
+    when:
+      price_below_per_kwh: 0.20
+      forecast_pv_power_above_w: 2000
+      grid_power_below_w: -300
+      battery_soc_below_percent: 95
+    then:
+      target_power_w: 2000
+    hold_seconds: 300
+
+  # Fixed-tariff profile: there is no price predicate, so the current PV
+  # forecast selects the charging window at a steady rate. A matching
+  # variable-tariff rule takes precedence above it.
+  - id: charge-fixed-rate-solar-forecast
+    priority: 130
+    when:
+      forecast_pv_power_above_w: 1200
+      grid_power_below_w: -300
+      battery_soc_below_percent: 95
+    then:
+      target_power_w: 1500
+    hold_seconds: 300
+
+  # Use a smaller target when the forecast expects useful, but lower, PV
+  # output. This gives a forecast-driven ramp without assuming morning or
+  # afternoon clock times.
+  - id: charge-solar-forecast-shoulder
+    priority: 110
+    when:
+      forecast_pv_power_above_w: 500
+      grid_power_below_w: -200
+      battery_soc_below_percent: 90
+    then:
+      target_power_w: 750
+    hold_seconds: 300
+
+  # Fallback for a forecast that does not expose an instantaneous PV estimate:
+  # charge only from strong measured export and a conservative target.
   - id: charge-solar-surplus
     priority: 100
     when:
       grid_power_below_w: -500
       battery_soc_below_percent: 90
-      between: ["09:00", "16:00"]
     then:
       target_power_w: 1500
     hold_seconds: 300
 
-  # A lower-priority daytime rule keeps a smaller charge target near the SoC limit.
+  # Lower-power measured-export fallback near the SoC limit.
   - id: charge-small-surplus
     priority: 50
     when:
       grid_power_below_w: -200
       battery_soc_below_percent: 98
-      between: ["08:00", "18:00"]
     then:
       target_power_w: 500
     hold_seconds: 300
@@ -37,7 +76,9 @@ rules:
       target_power_w: -1000
     hold_seconds: 600
 
-  # Dynamic-tariff example: charge when the market price is below 0.20 per kWh.
+  # Dynamic-tariff example: optionally charge from the grid when the price is
+  # exceptionally low. Remove this rule when charging from the grid is not
+  # part of the operating policy; solar rules above remain preferred.
   - id: charge-cheap-market
     priority: 80
     when:
@@ -48,14 +89,14 @@ rules:
     hold_seconds: 900
 
   # Preserve headroom when the remaining PV forecast exceeds remaining load.
-  # A target of 0 is simulation-only until physical commissioning authorizes
-  # any actuator; it represents the desired "do not actively charge" intent.
+  # Forecast-peak rules above take precedence when PV is predicted to be high
+  # now. A target of 0 is simulation-only until physical commissioning
+  # authorizes any actuator; it represents "do not actively charge" intent.
   - id: preserve-midday-headroom
     priority: 120
     when:
       forecast_surplus_above_kwh: 3
       battery_soc_below_percent: 90
-      between: ["06:00", "12:00"]
     then:
       target_power_w: 0
     hold_seconds: 300

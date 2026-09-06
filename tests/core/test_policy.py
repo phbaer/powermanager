@@ -2,7 +2,14 @@ from datetime import UTC, datetime, time
 from zoneinfo import ZoneInfo
 
 from powermanager_core.control import ControlRule, RuleConditions, evaluate_rules
-from powermanager_core.models import BatteryState, EnergyState, ForecastState, GridState, PriceState
+from powermanager_core.models import (
+    BatteryState,
+    CommunicationState,
+    EnergyState,
+    ForecastState,
+    GridState,
+    PriceState,
+)
 
 
 def energy(grid: float | None, soc: float = 50) -> EnergyState:
@@ -69,6 +76,32 @@ def test_forecast_condition_requires_a_fresh_complete_forecast() -> None:
         timestamp=at, battery=state.battery, grid=state.grid, forecast=forecast
     )
     assert evaluate_rules(forecasted, (rule,), at=at) is not None
+
+
+def test_pv_power_forecast_condition_selects_predicted_generation_window() -> None:
+    at = datetime(2024, 6, 1, 12, tzinfo=UTC)
+    state = BatteryState(timestamp=at, battery_soc_percent=50)
+    rule = ControlRule(
+        "pv-peak",
+        1,
+        RuleConditions(forecast_pv_power_above_w=1800),
+        1500,
+    )
+    forecast = ForecastState(
+        timestamp=at,
+        pv_power_forecast_w=2000,
+        communication_state=CommunicationState.ONLINE,
+    )
+    energy = EnergyState(timestamp=at, battery=state, forecast=forecast)
+    assert evaluate_rules(energy, (rule,), at=at) is not None
+
+    below_peak = ForecastState(
+        timestamp=at,
+        pv_power_forecast_w=1200,
+        communication_state=CommunicationState.ONLINE,
+    )
+    energy = EnergyState(timestamp=at, battery=state, forecast=below_peak)
+    assert evaluate_rules(energy, (rule,), at=at) is None
 
 
 def test_time_window_uses_explicit_local_timezone() -> None:
