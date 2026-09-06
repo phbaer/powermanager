@@ -44,6 +44,7 @@ async def async_get_config_entry_diagnostics(
         "predictive_headroom_kwh": data.predictive_headroom_kwh,
         "predictive_charge_inhibit": data.predictive_charge_inhibit,
         "predictive_reason": data.predictive_reason,
+        "predictive_control_enabled": getattr(coordinator, "predictive_control_enabled", False),
         "control_mode": data.control_mode,
         "active_control_available": data.active_control_available,
         "control_block_reason": data.control_block_reason,
