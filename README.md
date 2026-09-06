@@ -6,11 +6,11 @@ Island used in older Viessmann Vitocharge systems.
 
 ## Safety status
 
-`0.1.0` is **monitor only**. A guarded write adapter, heartbeat, restore-normal
-path, and read-only commissioning preflight are present, but no production
-control is enabled. Active control remains gated on ownership and failure-mode
-validation on the supported hardware, plus software safety and session-lifecycle
-hardening. See the [production handover](docs/knowledge/production-handover.md)
+`0.1.0` remains **monitor only by default**. A guarded write adapter, heartbeat,
+restore-normal path, and read-only commissioning preflight are present. Active
+control requires explicit commissioning confirmations and remains fail-closed on
+ownership, telemetry, operating state, power bounds, watchdog, and session
+lifecycle. See the [production handover](docs/knowledge/production-handover.md)
 for the ordered implementation checklist and acceptance gates.
 
 Passive Home Manager detection warns about other SMA senders; it does not prove
@@ -19,9 +19,9 @@ listener retries. The warning's `observation_state` attribute distinguishes unkn
 offline, stale, and online observation. Its `observed_sources` and
 `external_sources` attributes show the IPv4 senders seen on Speedwire; diagnostics
 include the external list for identifying a broadcaster on the local LAN.
-Failed listeners retry after 30 seconds; traffic expires after 120 seconds. Silence
-never grants ownership eligibility. Reload starts a new observation history. No
-indicator enables writes.
+Failed listeners retry after 30 seconds; traffic expires after 300 seconds in the
+HA coordinator. Silence never grants ownership eligibility. Reload starts a new
+observation history. No indicator enables writes.
 
 An observed sender address is not treated as a device-role determination. Verified
 telemetry-only devices can be added to normalized HA sensors in future protocol
@@ -55,18 +55,19 @@ packaged directly by the release workflows for HACS.
 
 The planned control architecture and declarative rule format are documented in
 [`docs/knowledge/control-plan.md`](docs/knowledge/control-plan.md). Control remains
-disabled until its simulation, safety validation, watchdog, hardware-specific
-write adapter, and physical commissioning are complete.
+disabled unless the operator explicitly enables the commissioned scheduled or
+manual path. The predictive scheduler is an opt-in constrained to measured PV
+surplus.
 
 The polling interval can be adjusted from the integration's Home Assistant options
-flow (5–300 seconds). Connection details remain in the config entry and all device
-communication remains read-only.
+flow (5–300 seconds). Connection details remain in the config entry; device
+communication is read-only unless the explicit active-control gates are enabled.
 
-The integration exposes the current control mode as `monitor_only`, reports that
-active control is unavailable, and includes the block reason in diagnostics. It
-also reads the Sunny Island serial number and packed firmware identity for stable
-device metadata. These indicators do not authorize control; supervised hardware
-commissioning is still required before any command adapter can be used.
+The integration exposes the current control mode and includes the block reason in
+diagnostics. It also reads the Sunny Island serial number and packed firmware
+identity for stable device metadata. These indicators do not authorize control;
+supervised hardware commissioning is still required before any command adapter
+can be used.
 
 The integration includes explicit `powermanager.start_control` and
 `powermanager.stop_control` services for a bounded manual session. They remain
@@ -76,8 +77,10 @@ procedure. Every heartbeat rechecks fresh telemetry, SoC reserve, operating
 state, ownership, and configured power bounds. Existing Sunny Island external
 setpoint, fallback, timeout, and power-bound settings are read during preflight
 and never rewritten by PowerManager. A restart or unload cannot resume a prior
-session. Scheduled rules are a separate opt-in and must follow supervised manual
-testing. No live command has been sent from this repository deployment.
+session. Scheduled control is a separate opt-in and must follow supervised
+manual testing. The supervised HA instance has the predictive option enabled;
+loading and health checks passed, but a successful live write has not been
+independently verified in this handover.
 
 Sunny Island event `7613` (“communication with meter faulty”) is treated as a
 charge-only warning: a bounded charge request may proceed when all other safety
