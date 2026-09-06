@@ -70,6 +70,13 @@ def _online_energy(now: datetime, **battery_kwargs: object) -> EnergyState:
     return EnergyState(
         timestamp=now,
         battery=BatteryState(**values),
+        grid=GridState(
+            timestamp=now,
+            grid_power_w=-1000,
+            pv_power_w=2000,
+            load_power_w=1000,
+            communication_state=CommunicationState.ONLINE,
+        ),
     )
 
 
@@ -115,6 +122,44 @@ def test_safety_rejects_max_soc_and_charge_limit() -> None:
             ControlIntent("rule", 500, 0, now), energy, SafetyConfig(), enabled=True, at=now
         )
         assert not valid and reason == expected
+
+
+def test_safety_rejects_charge_above_current_pv_surplus() -> None:
+    now = datetime.now(UTC)
+    energy = EnergyState(
+        timestamp=now,
+        battery=BatteryState(
+            timestamp=now,
+            communication_state=CommunicationState.ONLINE,
+            battery_soc_percent=50,
+            operating_state="Ok",
+        ),
+        grid=GridState(
+            timestamp=now,
+            grid_power_w=-1200,
+            pv_power_w=3000,
+            load_power_w=1000,
+            communication_state=CommunicationState.ONLINE,
+        ),
+    )
+    accepted, reason = validate_intent(
+        ControlIntent("rule", 1200, 0, now), energy, SafetyConfig(), enabled=True, at=now
+    )
+    assert accepted and reason is None
+    accepted, reason = validate_intent(
+        ControlIntent("rule", 1201, 0, now), energy, SafetyConfig(), enabled=True, at=now
+    )
+    assert not accepted and reason == "charge target exceeds currently available PV surplus"
+
+
+def test_safety_requires_pv_surplus_telemetry_for_charge() -> None:
+    now = datetime.now(UTC)
+    energy = _online_energy(now)
+    energy = EnergyState(timestamp=now, battery=energy.battery)
+    accepted, reason = validate_intent(
+        ControlIntent("rule", 100, 0, now), energy, SafetyConfig(), enabled=True, at=now
+    )
+    assert not accepted and reason == "PV surplus telemetry is unavailable"
 
 
 def test_safety_rejects_stale_optional_sources_and_future_timestamps() -> None:

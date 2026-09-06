@@ -16,7 +16,7 @@ def test_runtime_records_accepted_simulation_cycle() -> None:
             communication_state=CommunicationState.ONLINE,
         ),
         grid=GridState(
-            timestamp=at, grid_power_w=-800, communication_state=CommunicationState.ONLINE
+            timestamp=at, grid_power_w=-1500, communication_state=CommunicationState.ONLINE
         ),
     )
     runtime = ControlRuntime(
@@ -51,7 +51,7 @@ def test_runtime_holds_accepted_intent_until_hold_period_expires() -> None:
             communication_state=CommunicationState.ONLINE,
         ),
         grid=GridState(
-            timestamp=at, grid_power_w=-800, communication_state=CommunicationState.ONLINE
+            timestamp=at, grid_power_w=-1500, communication_state=CommunicationState.ONLINE
         ),
     )
     rule = ControlRule("surplus", 1, RuleConditions(grid_power_below_w=-500), 1500, hold_seconds=60)
@@ -73,7 +73,8 @@ def test_runtime_holds_accepted_intent_until_hold_period_expires() -> None:
         ),
     )
     held = asyncio.run(runtime.cycle(no_surplus, at=at + timedelta(seconds=10), enabled=True))
-    assert held.accepted
+    assert not held.accepted
+    assert held.reason == "charge target exceeds currently available PV surplus"
     assert held.held
     assert held.intent is not None and held.intent.rule_id == "surplus"
 
@@ -87,6 +88,9 @@ def test_runtime_applies_rule_cooldown() -> None:
             battery_soc_percent=50,
             operating_state="Ok",
             communication_state=CommunicationState.ONLINE,
+        ),
+        grid=GridState(
+            timestamp=at, grid_power_w=-1000, communication_state=CommunicationState.ONLINE
         ),
     )
     rule = ControlRule("always", 1, RuleConditions(), 100, cooldown_seconds=60)
@@ -128,7 +132,7 @@ def test_higher_priority_rule_preempts_a_held_rule() -> None:
         ),
         grid=GridState(
             timestamp=second_at,
-            grid_power_w=-1200,
+            grid_power_w=-1500,
             communication_state=CommunicationState.ONLINE,
         ),
     )
@@ -146,6 +150,9 @@ def test_disabling_runtime_requests_restore_and_clears_hold() -> None:
             battery_soc_percent=50,
             operating_state="Ok",
             communication_state=CommunicationState.ONLINE,
+        ),
+        grid=GridState(
+            timestamp=at, grid_power_w=-1000, communication_state=CommunicationState.ONLINE
         ),
     )
     runtime = ControlRuntime((ControlRule("always", 1, RuleConditions(), 100, hold_seconds=60),))
@@ -165,6 +172,9 @@ def test_watchdog_expiry_recovers_on_next_cycle() -> None:
             battery_soc_percent=50,
             operating_state="Ok",
             communication_state=CommunicationState.ONLINE,
+        ),
+        grid=GridState(
+            timestamp=at, grid_power_w=-1000, communication_state=CommunicationState.ONLINE
         ),
     )
     runtime = ControlRuntime(

@@ -85,6 +85,11 @@ def validate_intent(
                 return False, "battery charge limit is invalid"
             if intent.target_power_w > battery.charge_limit_w:
                 return False, "charge target exceeds battery limit"
+        available_pv_w = _available_pv_surplus_w(energy)
+        if available_pv_w is None:
+            return False, "PV surplus telemetry is unavailable"
+        if intent.target_power_w > available_pv_w:
+            return False, "charge target exceeds currently available PV surplus"
     if intent.target_power_w < 0:
         dynamic_floor = battery.discharge_limit_soc_percent
         if dynamic_floor is not None and (
@@ -98,6 +103,22 @@ def validate_intent(
         if soc <= effective_floor:
             return False, "battery is at or below effective minimum SoC"
     return True, None
+
+
+def _available_pv_surplus_w(energy: EnergyState) -> float | None:
+    """Return conservative instantaneous PV surplus available for charging."""
+    grid = energy.grid
+    if grid is None:
+        return None
+    readings = (grid.grid_power_w, grid.pv_power_w, grid.load_power_w)
+    if any(value is not None and not math.isfinite(value) for value in readings):
+        return None
+    candidates: list[float] = []
+    if grid.pv_power_w is not None and grid.load_power_w is not None:
+        candidates.append(max(grid.pv_power_w - grid.load_power_w, 0.0))
+    if grid.grid_power_w is not None:
+        candidates.append(max(-grid.grid_power_w, 0.0))
+    return min(candidates) if candidates else None
 
 
 def _validate_config(config: SafetyConfig) -> str | None:

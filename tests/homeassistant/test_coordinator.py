@@ -317,6 +317,14 @@ async def test_coordinator_uses_runtime_for_simulation_decision(coordinator):
     coordinator._simulation_runtime = ControlRuntime(
         coordinator._rules, watchdog=ControlWatchdog(timeout_seconds=60)
     )
+    coordinator._grid_provider = Mock(configured=True)
+    coordinator._grid_provider.read_grid_state = AsyncMock(
+        return_value=GridState(
+            timestamp=now,
+            grid_power_w=-1000,
+            communication_state=CommunicationState.ONLINE,
+        )
+    )
     client = AsyncMock()
     client.get_device_info.return_value = coordinator.data.device_info
     client.read_state.return_value = battery

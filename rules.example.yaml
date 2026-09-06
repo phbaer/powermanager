@@ -12,7 +12,7 @@ rules:
     when:
       price_below_per_kwh: 0.20
       forecast_pv_power_above_w: 2000
-      grid_power_below_w: -300
+      grid_power_below_w: -2000
       battery_soc_below_percent: 95
     then:
       target_power_w: 2000
@@ -25,7 +25,7 @@ rules:
     priority: 130
     when:
       forecast_pv_power_above_w: 1200
-      grid_power_below_w: -300
+      grid_power_below_w: -1500
       battery_soc_below_percent: 95
     then:
       target_power_w: 1500
@@ -38,7 +38,7 @@ rules:
     priority: 110
     when:
       forecast_pv_power_above_w: 500
-      grid_power_below_w: -200
+      grid_power_below_w: -750
       battery_soc_below_percent: 90
     then:
       target_power_w: 750
@@ -52,7 +52,7 @@ rules:
       grid_power_below_w: -500
       battery_soc_below_percent: 90
     then:
-      target_power_w: 1500
+      target_power_w: 500
     hold_seconds: 300
 
   # Lower-power measured-export fallback near the SoC limit.
@@ -62,7 +62,7 @@ rules:
       grid_power_below_w: -200
       battery_soc_below_percent: 98
     then:
-      target_power_w: 500
+      target_power_w: 200
     hold_seconds: 300
 
   # Discharge during import peaks only while the battery is well above reserve.
@@ -76,16 +76,16 @@ rules:
       target_power_w: -1000
     hold_seconds: 600
 
-  # Dynamic-tariff example: optionally charge from the grid when the price is
-  # exceptionally low. Remove this rule when charging from the grid is not
-  # part of the operating policy; solar rules above remain preferred.
+  # Dynamic-tariff example: a low price never authorizes grid charging. The
+  # measured-export predicate and safety layer still require free PV surplus.
   - id: charge-cheap-market
     priority: 80
     when:
       price_below_per_kwh: 0.20
+      grid_power_below_w: -200
       battery_soc_below_percent: 85
     then:
-      target_power_w: 1000
+      target_power_w: 200
     hold_seconds: 900
 
   # Preserve headroom when the remaining PV forecast exceeds remaining load.

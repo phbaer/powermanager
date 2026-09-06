@@ -222,7 +222,9 @@ including example-rule holds and local time windows.
 - [x] Validate required telemetry at command time; a fresh aggregate timestamp
   cannot hide stale battery/grid/price/forecast inputs.
 - [x] Enforce maximum charging SoC, reserve plus dynamic discharge floor, and
-  reported battery charge limits. Device-specific power-limit mapping and
+  reported battery charge limits. Charge intents are also rejected when they
+  exceed the conservative instantaneous PV surplus after household load and
+  measured export. Device-specific power-limit mapping and
   operating-state coverage still need validation on the target hardware.
 - [x] Test directly constructed models independently of HA providers/YAML parsing,
   including held intents after telemetry changes.

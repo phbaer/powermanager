@@ -109,6 +109,12 @@ Separate PV forecasts are summed only when every selected value is fresh. They
 are used only for simulation/policy eligibility; neither forecast data nor a
 policy can enable a device write.
 
+Charging is additionally bounded by the current measured PV surplus. A positive
+charge target is rejected when fresh site telemetry cannot prove enough PV power
+is available, or when the target would exceed the conservative minimum of PV
+minus load and measured grid export. The example rules keep their targets at or
+below their export thresholds as an additional policy guard.
+
 Energy Dashboard interval forecasts also expose the predicted PV power for the
 currently active interval. Rules can use `forecast_pv_power_above_w` to choose
 charge tiers from the forecast itself, so a policy does not assume that noon is
