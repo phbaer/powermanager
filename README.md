@@ -171,6 +171,10 @@ and charge limits. It produces explainable recommendations and deterministic
 replay and SoC/reserve outcome results for future backtesting; it is not connected to Home Assistant
 write control or any inverter write path. When forecast options are configured,
 Home Assistant exposes the recommendation and its reason as shadow sensors.
+The Sunny Island remains the authority for battery SoC estimation, charging
+phases, and battery protection. Replacing Home Manager also requires promoting
+the planner into a supervised forecast-based SoC scheduling policy; PowerManager
+must send bounded power targets and must never write or invent a battery SoC.
 
 Instead of supplying an expected-load forecast entity, PowerManager can estimate
 the remaining load until local midnight from the selected whole-home load-power

@@ -72,6 +72,13 @@ planner can replay timestamped inputs and report SoC, reserve, grid-energy, and
 curtailment outcomes for backtests. It is not connected to Home Assistant write
 control and remains subordinate to `control.safety`.
 
+The Sunny Island remains the SoC authority: its battery management estimates SoC
+and applies battery charge, discharge, and protection limits. PowerManager must
+not write an SoC value. To replace Home Manager, the predictive planner still
+needs a supervised scheduled-control integration that maintains the configured
+SoC trajectory from forecast and tariff inputs while sending only bounded power
+targets.
+
 ## Control milestones
 
 1. Define typed conditions/actions and deterministic policy evaluation.

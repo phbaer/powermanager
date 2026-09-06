@@ -336,6 +336,10 @@ their safety boundaries.
   the planner returns explicit headroom and charge-inhibit semantics. It is
   now exposed through read-only HA shadow sensors and diagnostics, but cannot
   write an inverter target.
+- [ ] Reproduce Home Manager's forecast-based SoC scheduling before transferring
+  sole control ownership. The Sunny Island remains authoritative for SoC
+  estimation, charging phases, BMS limits, and battery protection; PowerManager
+  must schedule bounded power targets without writing an SoC value.
 - [ ] Backtest recorded days with poor/missing forecasts, tariff changes, and
   seasonal/DST cases; compare reserve and end-of-day outcomes. The reusable
   backtest primitive exists, but no recorded deployment days have been loaded.
