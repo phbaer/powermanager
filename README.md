@@ -13,8 +13,9 @@ ownership, telemetry, operating state, power bounds, watchdog, and session
 lifecycle. See the [production handover](docs/knowledge/production-handover.md)
 for the ordered implementation checklist and acceptance gates.
 
-Passive Home Manager detection warns about other SMA senders; it does not prove
-their identity or exclusive control ownership. Warnings persist across polls and
+Passive Home Manager detection warns about unclassified other SMA senders; it
+does not prove their identity or exclusive control ownership. Verified
+reporting-only addresses remain visible but do not block ownership. Warnings persist across polls and
 listener retries. The warning's `observation_state` attribute distinguishes unknown,
 offline, stale, and online observation. Its `observed_sources` and
 `external_sources` attributes show the IPv4 senders seen on Speedwire; diagnostics

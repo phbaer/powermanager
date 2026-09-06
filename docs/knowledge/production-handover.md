@@ -93,6 +93,9 @@ Completed passive detection improvements:
 - The warning is unknown during silence/failure/staleness unless a competitor
   was already detected, in which case it stays on. Its observation_state attribute
   and diagnostics expose health separately.
+- Explicitly configured reporting-only senders remain visible in the source list
+  but do not raise the possible-controller warning or block ownership. An
+  unclassified sender still blocks control.
 - The Speedwire warning entity exposes observed sender IPv4 addresses and the
   subset classified as external; dedicated source-count/source-address sensors
   and diagnostics expose the complete list so local debugging can identify a

@@ -530,9 +530,12 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         """Use one authoritative snapshot for polls and passive updates."""
         monitor = self._speedwire_monitor
         now = datetime.now(UTC)
+        unclassified_sources = set(monitor.external_sources) - set(
+            self._active_control_telemetry_sources
+        )
         observed = replace(
             data,
-            possible_external_controller=monitor.possible_external_controller,
+            possible_external_controller=bool(unclassified_sources),
             speedwire_sources=tuple(sorted(monitor.observed_sources)),
             speedwire_external_sources=monitor.external_sources,
             speedwire_observation_state=monitor.observation_state(now),
@@ -552,8 +555,15 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
 
     def _publish_observation(self) -> None:
         """Update listeners without resetting Modbus polling or its health."""
-        if self._speedwire_monitor.possible_external_controller:
+        unclassified_sources = set(self._speedwire_monitor.external_sources) - set(
+            self._active_control_telemetry_sources
+        )
+        if unclassified_sources:
             self._create_issue("possible_external_controller", "possible_external_controller")
+        else:
+            issue_registry.async_delete_issue(
+                self.hass, DOMAIN, "possible_external_controller"
+            )
         if self.data is not None:
             updated = self._with_observation(self.data)
             if updated != self.data:

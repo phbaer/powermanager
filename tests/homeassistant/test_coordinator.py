@@ -237,6 +237,19 @@ async def test_speedwire_count_sensor_exposes_sender_addresses(coordinator):
     assert address_entity.native_value == "127.0.0.2"
 
 
+async def test_reporting_only_speedwire_source_does_not_block(coordinator):
+    """An explicitly allow-listed telemetry sender is not a control warning."""
+    coordinator._active_control_telemetry_sources = {"127.0.0.2"}
+    monitor = coordinator._speedwire_monitor
+    monitor.listening = True
+    monitor.observe(SpeedwireFrame(b"pv", ("127.0.0.2", 9522), datetime.now(UTC)))
+    coordinator._publish_observation()
+
+    assert not coordinator.data.possible_external_controller
+    assert coordinator.data.speedwire_external_sources == ("127.0.0.2",)
+    assert coordinator.data.control_ownership_clear
+
+
 async def test_listener_failure_retries_and_stop_cleans_up(coordinator):
     import asyncio
 
