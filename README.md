@@ -184,7 +184,7 @@ must never write or invent a battery SoC.
 PowerManager adds recorder-friendly forecast sensors for PV power now, estimated
 household load power now, planned charge power, planned discharge power, and the
 PV/load forecast errors. The PV and estimated-load sensors include a timestamped
-`forecast_profile` attribute for the remaining day. Add the sensors to a native
+`forecast_profile` attribute for the next 24 hours. Add the sensors to a native
 Home Assistant history graph to compare predictions with measured PV and load:
 
 ```yaml
@@ -204,8 +204,10 @@ entities:
 
 The exact entity IDs are shown in the integration device. This graph records
 what PowerManager predicted at each poll and what actually happened afterward;
-the forecast profile attribute exposes the future PV/load points used by the
-planner. Load estimation prefers recent complete days with the same weekday and
+the forecast profile attribute exposes the next 24 hours of future PV/load
+points used by the planner. The profile is deliberately bounded so Home
+Assistant Recorder can retain the attributes. Load estimation prefers recent
+complete days with the same weekday and
 falls back to recent complete days when Recorder lacks enough matching history.
 
 Instead of supplying an expected-load forecast entity, PowerManager can estimate
