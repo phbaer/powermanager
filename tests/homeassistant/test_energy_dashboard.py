@@ -1,6 +1,6 @@
 """Energy Dashboard topology import tests."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from custom_components.powermanager.core.powermanager_core.inverters import InverterRole
 from custom_components.powermanager.ha_energy_dashboard import (
@@ -79,3 +79,18 @@ def test_energy_dashboard_forecast_exposes_power_profile() -> None:
         (datetime(2026, 6, 1, 12, tzinfo=UTC), 1800.0),
         (datetime(2026, 6, 1, 13, tzinfo=UTC), 2400.0),
     )
+
+
+def test_energy_dashboard_forecast_profile_is_limited_to_next_day() -> None:
+    now = datetime(2026, 6, 1, 12, 30, tzinfo=UTC)
+    samples = [
+        (now, 1000.0),
+        (now + timedelta(hours=24), 2000.0),
+        (now + timedelta(hours=25), 3000.0),
+    ]
+
+    profile = _forecast_profile_power_w(samples, now=now)
+
+    assert profile[0] == (now, 1000 / 24)
+    assert all(timestamp <= now + timedelta(hours=24) for timestamp, _ in profile)
+    assert not any(timestamp > now + timedelta(hours=24) for timestamp, _ in profile)

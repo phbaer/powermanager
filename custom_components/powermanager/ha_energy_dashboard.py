@@ -345,7 +345,7 @@ async def _read_solar_forecast(
             if current_power is not None:
                 current_power_w += current_power
                 current_power_sources += 1
-            for timestamp, power_w in _forecast_profile_power_w(samples):
+            for timestamp, power_w in _forecast_profile_power_w(samples, now=now):
                 profile_power_w[timestamp] = profile_power_w.get(timestamp, 0.0) + power_w
     if not found:
         return None
@@ -386,16 +386,30 @@ def _current_forecast_power_w(
 
 def _forecast_profile_power_w(
     samples: list[tuple[datetime, float]],
+    *,
+    now: datetime | None = None,
+    horizon: timedelta = timedelta(hours=24),
 ) -> tuple[tuple[datetime, float], ...]:
-    """Convert forecast interval energy into timestamped average power."""
+    """Convert forecast interval energy into a bounded power profile.
+
+    Energy Dashboard providers may expose several days of forecast intervals.
+    PowerManager only needs the near-term profile, and keeping it bounded also
+    prevents the profile attribute from exceeding Home Assistant Recorder's
+    16 KiB attribute limit.
+    """
     samples.sort()
     profile: list[tuple[datetime, float]] = []
+    end = now + horizon if now is not None else None
     for index, (timestamp, energy_wh) in enumerate(samples):
+        if end is not None and timestamp > end:
+            break
         next_timestamp = (
             samples[index + 1][0]
             if index + 1 < len(samples)
             else timestamp + timedelta(hours=1)
         )
+        if end is not None:
+            next_timestamp = min(next_timestamp, end)
         interval_hours = (next_timestamp - timestamp).total_seconds() / 3600
         if interval_hours > 0:
             profile.append((timestamp, energy_wh / interval_hours))
