@@ -57,6 +57,13 @@ prediction errors, and future profile attributes; the new entities were
 registered successfully after the HA restart. A native history graph can use
 these entities for the first recorded prediction-versus-outcome review.
 
+The profile deployment was tightened later the same day to retain only the
+next 24 hours, keeping Recorder attributes below its 16 KiB limit. Historical
+load estimation now supplies an hourly same-weekday profile for the remaining
+day while retaining the integrated remaining-energy total for planning. HA was
+restarted again after `ha core check`; no PowerManager forecast-attribute
+warnings appeared in the post-restart log.
+
 After the Home Manager was disconnected, a 30-second read-only capture on the
 LAN-side host interface `10.0.1.254` received no valid frames for
 `239.12.255.254:9522`. This is a negative observation for that interface and
