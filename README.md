@@ -74,8 +74,8 @@ can be used.
 The firmware identity is a commissioning input, not a prerequisite for ordinary
 read-only telemetry. If Modbus registers 30061/30063 return SMA's unavailable
 value (`0xFFFFFFFF`) or an unknown packed format, the firmware sensor reports
-`unknown` and active control remains blocked until the installed firmware and
-its behavior are confirmed manually.
+`unknown`. Active control still requires the explicit firmware/Modbus behavior
+confirmation; a missing identity alone does not block a confirmed installation.
 
 The integration includes explicit `powermanager.start_control` and
 `powermanager.stop_control` services for a bounded manual session. They remain

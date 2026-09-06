@@ -478,8 +478,6 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
             return "Speedwire ownership is not clear"
         if data.battery_state.communication_state is not CommunicationState.ONLINE:
             return "battery telemetry is not online"
-        if data.device_info.firmware_version is None:
-            return "Sunny Island firmware identity is unavailable"
         return None
 
     def _publish_control_status(self) -> None:

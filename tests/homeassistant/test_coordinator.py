@@ -164,6 +164,24 @@ async def test_missing_firmware_identity_creates_monitoring_issue(coordinator):
     create_issue.assert_called_once_with("firmware_unavailable", "firmware_unavailable")
 
 
+def test_confirmed_behavior_allows_control_without_reported_firmware(coordinator):
+    """A missing optional identity does not defeat explicit commissioning."""
+    now = datetime.now(UTC)
+    battery = BatteryState(timestamp=now, communication_state=CommunicationState.ONLINE)
+    data = PowerManagerData(
+        device_info=DeviceInfo("sma_sunny_island", "SI4.4M-12", None, None, 9332, True),
+        battery_state=battery,
+        energy_state=EnergyState(timestamp=now, battery=battery),
+        control_ownership_clear=True,
+    )
+    coordinator._active_control_enabled = True
+    coordinator._active_control_single_phase_confirmed = True
+    coordinator._active_control_firmware_confirmed = True
+    coordinator._active_control_ls_rcd_confirmed = True
+
+    assert coordinator._active_control_block_reason(data) is None
+
+
 async def test_detection_survives_poll_and_does_not_mask_modbus_failure(coordinator):
     monitor = coordinator._speedwire_monitor
     monitor.listening = True

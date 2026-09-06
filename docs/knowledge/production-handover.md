@@ -210,7 +210,9 @@ restart without relying on packages installed by the development environment.
 - [x] Expose the decoded firmware identity as a read-only HA sensor; this does
   not establish that the observed firmware is approved for active control.
 - [x] Report unsupported device types and undecodable firmware as separate HA
-  issues while keeping the integration unavailable/monitor-only.
+  issues. A missing firmware identity remains a diagnostic warning; the explicit
+  firmware/Modbus behavior confirmation is the commissioning gate when the
+  inverter does not report a version.
 - [ ] Establish the actual supported firmware matrix and validate it against
   the target hardware.
 - [x] Require tests, Ruff, hassfest, and HACS validation before publishing. The

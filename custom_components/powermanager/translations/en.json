@@ -68,7 +68,7 @@
           "active_control_enabled": "Enables the explicit start_control service only after every commissioning confirmation below passes. It never changes Sunny Island configuration registers.",
           "active_control_scheduled": "Allows matching simulation rules to start bounded sessions. Keep disabled until supervised manual control has passed.",
           "active_control_single_phase_confirmed": "The supported write path is restricted to the confirmed single-phase installation.",
-          "active_control_firmware_confirmed": "Confirm the installed firmware, external-setpoint mode, fallback behavior, timeout, and fallback power from the read-only commissioning report.",
+          "active_control_firmware_confirmed": "Confirm the installed firmware where reported, plus external-setpoint mode, fallback behavior, timeout, and fallback power from the read-only commissioning report. If the inverter does not report firmware, confirm these behaviors through the local SMA interface or documentation.",
           "active_control_ls_rcd_confirmed": "The LS circuit breaker and RCD are the only physical isolation boundary; confirm that a supervised operator can use them before enabling control.",
           "active_control_telemetry_sources": "Comma-separated addresses of verified reporting-only senders (for example a PV inverter). Unknown senders still block control; this list does not identify a controller.",
           "active_control_max_power_w": "Software upper bound for both charge and discharge commands. The existing Sunny Island bounds are not rewritten.",
@@ -195,7 +195,7 @@
     },
     "firmware_unavailable": {
       "title": "Sunny Island firmware identity unavailable",
-      "description": "The Sunny Island answered firmware registers 30061/30063 with an unavailable or undecodable value. Firmware identity is required for the active-control commissioning gate; keep PowerManager monitor-only until the installed firmware and behavior are confirmed."
+      "description": "The Sunny Island answered firmware registers 30061/30063 with an unavailable or undecodable value. This remains a diagnostic warning; the explicit firmware and Modbus behavior confirmation can satisfy the active-control gate when the inverter does not report an identity."
     }
   }
 }
