@@ -37,6 +37,7 @@ class HomeAssistantEntityForecastProvider:
         self._history_days = history_days
         self._history_cache_key: tuple[datetime.date, int, int] | None = None
         self._history_cache_value: float | None = None
+        self._history_cache_profile: tuple[tuple[datetime, float], ...] = ()
 
     @property
     def configured(self) -> bool:
@@ -52,10 +53,12 @@ class HomeAssistantEntityForecastProvider:
         pv, pv_timestamp = self._read_energy_total(self._remaining_pv_entities, now)
         load, load_timestamp = self._read_energy(self._remaining_load_entity, now)
         estimated_load = False
+        estimated_load_profile: tuple[tuple[datetime, float], ...] = ()
         if load is None and self._estimate_remaining_load and not self._remaining_load_entity:
             load = await self._estimate_remaining_load_kwh()
             load_timestamp = now if load is not None else None
             estimated_load = load is not None
+            estimated_load_profile = self._history_cache_profile
         timestamps = [timestamp for timestamp in (pv_timestamp, load_timestamp) if timestamp]
         latest = max(timestamps) if timestamps else None
         communication = communication_state_for_timestamp(
@@ -69,6 +72,8 @@ class HomeAssistantEntityForecastProvider:
         )
         remaining_hours = max((next_midnight - local_now).total_seconds() / 3600, 0.25)
         load_power_forecast_w = load * 1000 / remaining_hours if load is not None else None
+        if estimated_load_profile:
+            load_power_forecast_w = estimated_load_profile[0][1]
         return ForecastState(
             timestamp=latest or now,
             remaining_pv_kwh=pv,
@@ -76,7 +81,9 @@ class HomeAssistantEntityForecastProvider:
             communication_state=communication,
             load_power_forecast_w=load_power_forecast_w,
             load_power_forecast_profile=(
-                _flat_forecast_profile(local_now, next_midnight, load_power_forecast_w)
+                estimated_load_profile
+                if estimated_load_profile
+                else _flat_forecast_profile(local_now, next_midnight, load_power_forecast_w)
                 if estimated_load and load_power_forecast_w is not None
                 else ()
             ),
@@ -128,34 +135,80 @@ class HomeAssistantEntityForecastProvider:
         ]
         try:
             values = await get_instance(self._hass).async_add_executor_job(
-                self._read_historical_energy, day_starts, day_ends
+                self._read_historical_energy_profile, day_starts, day_ends
             )
         except Exception:  # Recorder availability must not break normal telemetry.
             values = []
         self._history_cache_key = cache_key
-        self._history_cache_value = sum(values) / len(values) if values else None
+        if len(values) != self._history_days:
+            self._history_cache_value = None
+            self._history_cache_profile = ()
+            return None
+        self._history_cache_value = sum(value for value, _ in values) / len(values)
+        slots = {slot for _, profile in values for slot in profile}
+        averaged_slots = {
+            slot: sum(profile[slot] for _, profile in values) / len(values)
+            for slot in slots
+            if all(slot in profile for _, profile in values)
+        }
+        self._history_cache_profile = _hourly_forecast_profile(
+            local_now, averaged_slots
+        )
         return self._history_cache_value
 
     def _read_historical_energy(
         self, starts: list[datetime], ends: list[datetime]
     ) -> list[float]:
         """Integrate each matching historical remainder using Recorder states."""
+        return [
+            value
+            for value, _ in self._read_historical_energy_profile(starts, ends)
+        ]
+
+    def _read_historical_energy_profile(
+        self, starts: list[datetime], ends: list[datetime]
+    ) -> list[tuple[float, dict[int, float]]]:
+        """Integrate matching history and build hourly power profiles."""
         if not self._load_power_entity:
             return []
-        values: list[float] = []
+        values: list[tuple[float, dict[int, float]]] = []
         for start, end in zip(starts, ends, strict=True):
+            profile_start = datetime.combine(
+                start.date(), time.min, tzinfo=start.tzinfo
+            )
             states = history.get_significant_states(
                 self._hass,
-                start,
+                profile_start,
                 end,
                 entity_ids=[self._load_power_entity],
                 include_start_time_state=True,
                 no_attributes=False,
             ).get(self._load_power_entity, [])
             energy = self._integrate_power_states(states, start, end)
-            if energy is not None:
-                values.append(energy)
+            profile = self._hourly_power_profile(states, profile_start, end)
+            if energy is not None and profile is not None:
+                values.append((energy, profile))
         return values if len(values) == self._history_days else []
+
+    @classmethod
+    def _hourly_power_profile(
+        cls, states: list[Any], start: datetime, end: datetime
+    ) -> dict[int, float] | None:
+        """Return average watts per hour slot from piecewise-constant states."""
+        profile: dict[int, float] = {}
+        cursor = start.replace(minute=0, second=0, microsecond=0)
+        while cursor < end:
+            hour_end = min(cursor + timedelta(hours=1), end)
+            energy = cls._integrate_power_states(states, cursor, hour_end)
+            if energy is None:
+                return None
+            duration_hours = (hour_end - cursor).total_seconds() / 3600
+            if duration_hours <= 0:
+                return None
+            slot = int((cursor - start).total_seconds() // 3600)
+            profile[slot] = energy * 1000 / duration_hours
+            cursor = hour_end
+        return profile
 
     @staticmethod
     def _integrate_power_states(
@@ -231,6 +284,26 @@ def _flat_forecast_profile(
     points: list[tuple[datetime, float]] = []
     cursor = start.replace(minute=0, second=0, microsecond=0)
     while cursor < end:
+        points.append((cursor, power_w))
+        cursor += timedelta(hours=1)
+    return tuple(points)
+
+
+def _hourly_forecast_profile(
+    local_now: datetime, averaged_slots: dict[int, float]
+) -> tuple[tuple[datetime, float], ...]:
+    """Map averaged historical slots onto today's remaining local hours."""
+    if not averaged_slots:
+        return ()
+    day_start = datetime.combine(local_now.date(), time.min, tzinfo=local_now.tzinfo)
+    next_midnight = day_start + timedelta(days=1)
+    cursor = local_now.replace(minute=0, second=0, microsecond=0)
+    points: list[tuple[datetime, float]] = []
+    while cursor < next_midnight:
+        slot = int((cursor - day_start).total_seconds() // 3600)
+        power_w = averaged_slots.get(slot)
+        if power_w is None:
+            return ()
         points.append((cursor, power_w))
         cursor += timedelta(hours=1)
     return tuple(points)

@@ -209,6 +209,8 @@ points used by the planner. The profile is deliberately bounded so Home
 Assistant Recorder can retain the attributes. Load estimation prefers recent
 complete days with the same weekday and
 falls back to recent complete days when Recorder lacks enough matching history.
+The displayed load forecast follows the averaged hourly shape of those days;
+the planner still uses the independently integrated remaining kWh total.
 
 Instead of supplying an expected-load forecast entity, PowerManager can estimate
 the remaining load until local midnight from the selected whole-home load-power

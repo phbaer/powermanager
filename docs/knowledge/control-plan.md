@@ -86,6 +86,8 @@ sensors, plus PV/load forecast-error sensors. The PV and estimated-load sensors
 carry a timestamped `forecast_profile` attribute for the next 24 hours. A native
 `history-graph` card can therefore show the predictions recorded in the past
 alongside measured PV/load and the resulting battery plan.
+The estimated-load profile follows the averaged hourly shape of the selected
+historical days, while planning uses their integrated remaining-energy total.
 
 ## Control milestones
 

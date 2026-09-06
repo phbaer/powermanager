@@ -9,6 +9,7 @@ from homeassistant.core import State
 from custom_components.powermanager.ha_entity_provider import HomeAssistantEntityGridProvider
 from custom_components.powermanager.ha_forecast_provider import (
     HomeAssistantEntityForecastProvider,
+    _hourly_forecast_profile,
     _matching_history_days,
 )
 
@@ -77,3 +78,18 @@ def test_history_estimator_prefers_same_weekday() -> None:
     days = _matching_history_days(now, 3)
     assert len(days) == 3
     assert all(day.weekday() == now.weekday() for day in days)
+
+
+def test_historical_profile_maps_hourly_slots_to_today() -> None:
+    now = datetime(2026, 6, 8, 12, 30, tzinfo=UTC)
+
+    profile = _hourly_forecast_profile(
+        now,
+        {slot: {12: 900.0, 13: 1100.0, 14: 1300.0}.get(slot, 1500.0) for slot in range(24)},
+    )
+
+    assert profile[:3] == (
+        (datetime(2026, 6, 8, 12, tzinfo=UTC), 900.0),
+        (datetime(2026, 6, 8, 13, tzinfo=UTC), 1100.0),
+        (datetime(2026, 6, 8, 14, tzinfo=UTC), 1300.0),
+    )
