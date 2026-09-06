@@ -773,7 +773,7 @@ class PowerManagerCoordinator(DataUpdateCoordinator[PowerManagerData]):
         forecast_state: ForecastState | None,
         grid_state: GridState | None,
     ) -> PredictivePlan | None:
-        """Return a forecast plan for shadow sensors without any actuator call."""
+        """Return a forecast plan for sensors and the opt-in scheduler."""
         if (
             forecast_state is None
             or forecast_state.communication_state is not CommunicationState.ONLINE
