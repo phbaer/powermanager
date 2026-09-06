@@ -165,12 +165,12 @@
       "active_control_last_error": {"name": "Active-control last error"},
       "speedwire_source_count": {"name": "Observed SMA Speedwire sources"},
       "energy_dashboard_summary": {"name": "Energy Dashboard telemetry readiness"},
-      "predictive_target_power": {"name": "Predictive shadow target power"},
-      "predictive_target_soc": {"name": "Predictive shadow target SoC"},
+      "predictive_target_power": {"name": "Predictive target power"},
+      "predictive_target_soc": {"name": "Predictive target SoC"},
       "predictive_forecast_surplus": {"name": "Predictive forecast surplus"},
       "predictive_headroom": {"name": "Predictive battery headroom"},
       "predictive_charge_inhibit": {"name": "Predictive charge inhibit"},
-      "predictive_reason": {"name": "Predictive shadow reason"}
+      "predictive_reason": {"name": "Predictive reason"}
     }
   },
   "issues": {
