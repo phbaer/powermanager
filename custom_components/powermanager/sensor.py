@@ -155,6 +155,46 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
         ),
     ),
     PowerManagerSensorDescription(
+        key="forecast_pv_power_now",
+        translation_key="forecast_pv_power_now",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement="W",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: (
+            coordinator.data.energy_state.forecast.pv_power_forecast_w
+            if coordinator.data.energy_state.forecast
+            else None
+        ),
+    ),
+    PowerManagerSensorDescription(
+        key="forecast_load_power_now",
+        translation_key="forecast_load_power_now",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement="W",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: (
+            coordinator.data.energy_state.forecast.load_power_forecast_w
+            if coordinator.data.energy_state.forecast
+            else None
+        ),
+    ),
+    PowerManagerSensorDescription(
+        key="forecast_pv_error",
+        translation_key="forecast_pv_error",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement="W",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: _forecast_error(coordinator, "pv"),
+    ),
+    PowerManagerSensorDescription(
+        key="forecast_load_error",
+        translation_key="forecast_load_error",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement="W",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: _forecast_error(coordinator, "load"),
+    ),
+    PowerManagerSensorDescription(
         key="predictive_target_power",
         translation_key="predictive_target_power",
         device_class=SensorDeviceClass.POWER,
@@ -198,6 +238,22 @@ SENSORS: tuple[PowerManagerSensorDescription, ...] = (
         key="predictive_reason",
         translation_key="predictive_reason",
         value_fn=lambda coordinator: coordinator.data.predictive_reason,
+    ),
+    PowerManagerSensorDescription(
+        key="planned_charge_power",
+        translation_key="planned_charge_power",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement="W",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: max(coordinator.data.predictive_target_power_w or 0, 0),
+    ),
+    PowerManagerSensorDescription(
+        key="planned_discharge_power",
+        translation_key="planned_discharge_power",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement="W",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coordinator: max(-(coordinator.data.simulated_target_power_w or 0), 0),
     ),
     PowerManagerSensorDescription(
         key="simulated_rule",
@@ -335,6 +391,31 @@ class PowerManagerSensor(CoordinatorEntity[PowerManagerCoordinator], SensorEntit
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Expose sender addresses on the Speedwire count sensor for debugging."""
+        if self.entity_description.key in {"forecast_pv_power_now", "forecast_load_power_now"}:
+            forecast = self.coordinator.data.energy_state.forecast
+            if forecast is None:
+                return None
+            profile = (
+                forecast.pv_power_forecast_profile
+                if self.entity_description.key == "forecast_pv_power_now"
+                else forecast.load_power_forecast_profile
+            )
+            return {
+                "forecast_profile": [
+                    {"time": timestamp.isoformat(), "power_w": round(power_w, 3)}
+                    for timestamp, power_w in profile
+                ],
+                "forecast_timestamp": forecast.timestamp.isoformat(),
+            }
+        if self.entity_description.key in {"planned_charge_power", "planned_discharge_power"}:
+            data = self.coordinator.data
+            return {
+                "planner_reason": data.predictive_reason,
+                "target_soc_percent": data.predictive_target_soc_percent,
+                "forecast_surplus_kwh": data.predictive_forecast_surplus_kwh,
+                "charge_inhibit": data.predictive_charge_inhibit,
+                "rule_target_power_w": data.simulated_target_power_w,
+            }
         if self.entity_description.key != "speedwire_source_count":
             if self.entity_description.key != "energy_dashboard_summary":
                 return None
@@ -349,6 +430,21 @@ class PowerManagerSensor(CoordinatorEntity[PowerManagerCoordinator], SensorEntit
             "observed_sources": list(data.speedwire_sources),
             "external_sources": list(data.speedwire_external_sources),
         }
+
+
+def _forecast_error(coordinator: PowerManagerCoordinator, kind: str) -> float | None:
+    """Return actual minus predicted power for recorder-based validation."""
+    forecast = coordinator.data.energy_state.forecast
+    grid = coordinator.data.energy_state.grid
+    if forecast is None or grid is None:
+        return None
+    predicted = (
+        forecast.pv_power_forecast_w if kind == "pv" else forecast.load_power_forecast_w
+    )
+    actual = grid.pv_power_w if kind == "pv" else grid.load_power_w
+    if predicted is None or actual is None:
+        return None
+    return actual - predicted
 
 
 class InverterTelemetrySensor(CoordinatorEntity[PowerManagerCoordinator], SensorEntity):

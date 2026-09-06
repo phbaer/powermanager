@@ -7,7 +7,10 @@ from datetime import UTC, datetime, timedelta
 from homeassistant.core import State
 
 from custom_components.powermanager.ha_entity_provider import HomeAssistantEntityGridProvider
-from custom_components.powermanager.ha_forecast_provider import HomeAssistantEntityForecastProvider
+from custom_components.powermanager.ha_forecast_provider import (
+    HomeAssistantEntityForecastProvider,
+    _matching_history_days,
+)
 
 
 async def test_separate_grid_import_and_export_power_are_combined(hass) -> None:
@@ -66,3 +69,11 @@ def test_historical_load_energy_is_integrated_as_piecewise_constant_power() -> N
     )
 
     assert energy == 3
+
+
+def test_history_estimator_prefers_same_weekday() -> None:
+    """Load estimates use recent samples from the same weekday first."""
+    now = datetime(2026, 6, 8, 12, tzinfo=UTC)  # Monday
+    days = _matching_history_days(now, 3)
+    assert len(days) == 3
+    assert all(day.weekday() == now.weekday() for day in days)

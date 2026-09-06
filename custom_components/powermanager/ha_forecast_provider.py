@@ -35,7 +35,7 @@ class HomeAssistantEntityForecastProvider:
         self._load_power_entity = load_power_entity
         self._estimate_remaining_load = estimate_remaining_load
         self._history_days = history_days
-        self._history_cache_key: tuple[datetime.date, int] | None = None
+        self._history_cache_key: tuple[datetime.date, int, int] | None = None
         self._history_cache_value: float | None = None
 
     @property
@@ -51,9 +51,11 @@ class HomeAssistantEntityForecastProvider:
         now = datetime.now(UTC)
         pv, pv_timestamp = self._read_energy_total(self._remaining_pv_entities, now)
         load, load_timestamp = self._read_energy(self._remaining_load_entity, now)
+        estimated_load = False
         if load is None and self._estimate_remaining_load and not self._remaining_load_entity:
             load = await self._estimate_remaining_load_kwh()
             load_timestamp = now if load is not None else None
+            estimated_load = load is not None
         timestamps = [timestamp for timestamp in (pv_timestamp, load_timestamp) if timestamp]
         latest = max(timestamps) if timestamps else None
         communication = communication_state_for_timestamp(
@@ -61,11 +63,23 @@ class HomeAssistantEntityForecastProvider:
         )
         if pv is not None or load is not None:
             communication = CommunicationState.ONLINE
+        local_now = dt_util.now()
+        next_midnight = datetime.combine(
+            local_now.date() + timedelta(days=1), time.min, tzinfo=local_now.tzinfo
+        )
+        remaining_hours = max((next_midnight - local_now).total_seconds() / 3600, 0.25)
+        load_power_forecast_w = load * 1000 / remaining_hours if load is not None else None
         return ForecastState(
             timestamp=latest or now,
             remaining_pv_kwh=pv,
             expected_remaining_load_kwh=load,
             communication_state=communication,
+            load_power_forecast_w=load_power_forecast_w,
+            load_power_forecast_profile=(
+                _flat_forecast_profile(local_now, next_midnight, load_power_forecast_w)
+                if estimated_load and load_power_forecast_w is not None
+                else ()
+            ),
         )
 
     def _read_energy(
@@ -101,14 +115,11 @@ class HomeAssistantEntityForecastProvider:
         if not self._load_power_entity:
             return None
         local_now = dt_util.now()
-        cache_key = (local_now.date(), local_now.hour)
+        cache_key = (local_now.date(), local_now.hour, local_now.weekday())
         if cache_key == self._history_cache_key:
             return self._history_cache_value
 
-        day_starts = [
-            local_now - timedelta(days=offset)
-            for offset in range(1, self._history_days + 1)
-        ]
+        day_starts = _matching_history_days(local_now, self._history_days)
         day_ends = [
             datetime.combine(
                 day_start.date() + timedelta(days=1), time.min, tzinfo=local_now.tzinfo
@@ -186,3 +197,40 @@ class HomeAssistantEntityForecastProvider:
         if value is None:
             return ()
         return (value,) if isinstance(value, str) else tuple(value)
+
+
+def _matching_history_days(local_now: datetime, count: int) -> list[datetime]:
+    """Select recent same-weekday samples, with a contiguous fallback.
+
+    Matching weekdays reduce the bias from weekend/weekday load patterns. The
+    bounded lookback keeps the estimator seasonal enough without requiring a
+    separate climate model; if Recorder has fewer matching days, recent days
+    fill the missing samples.
+    """
+    matching: list[datetime] = []
+    fallback: list[datetime] = []
+    for offset in range(1, max(56, count) + 1):
+        candidate = local_now - timedelta(days=offset)
+        if candidate.weekday() == local_now.weekday() and len(matching) < count:
+            matching.append(candidate)
+        if len(fallback) < count:
+            fallback.append(candidate)
+        if len(matching) == count:
+            break
+    if len(matching) == count:
+        return matching
+    return matching + [day for day in fallback if day not in matching][: count - len(matching)]
+
+
+def _flat_forecast_profile(
+    start: datetime, end: datetime, power_w: float | None
+) -> tuple[tuple[datetime, float], ...]:
+    """Represent a remaining-energy estimate as hourly forecast samples."""
+    if power_w is None:
+        return ()
+    points: list[tuple[datetime, float]] = []
+    cursor = start.replace(minute=0, second=0, microsecond=0)
+    while cursor < end:
+        points.append((cursor, power_w))
+        cursor += timedelta(hours=1)
+    return tuple(points)

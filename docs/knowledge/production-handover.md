@@ -349,6 +349,11 @@ their safety boundaries.
   the existing scheduled-control gates, the planner is the charging policy;
   every recommendation is revalidated with fresh telemetry and bounded by
   measured PV surplus. Grid charging is disabled on this path.
+- [x] Expose PV/load forecast power, charge/discharge plans, and forecast-error
+  sensors with timestamped future profiles. These values can be graphed with a
+  native Home Assistant history card to validate predictions against outcomes.
+- [x] Prefer same-weekday Recorder history for the current-day load estimate,
+  with a bounded recent-day fallback when matching history is incomplete.
 - [ ] Reproduce Home Manager's forecast-based SoC scheduling before transferring
   sole control ownership. The Sunny Island remains authoritative for SoC
   estimation, charging phases, BMS limits, and battery protection; PowerManager

@@ -310,6 +310,7 @@ async def _read_solar_forecast(
     current_power_w = 0.0
     forecast_sources = 0
     current_power_sources = 0
+    profile_power_w: dict[datetime, float] = {}
     latest = now
     found = False
     for _, config_entry_ids in configuration.solar_forecast_entries:
@@ -344,6 +345,8 @@ async def _read_solar_forecast(
             if current_power is not None:
                 current_power_w += current_power
                 current_power_sources += 1
+            for timestamp, power_w in _forecast_profile_power_w(samples):
+                profile_power_w[timestamp] = profile_power_w.get(timestamp, 0.0) + power_w
     if not found:
         return None
     return ForecastState(
@@ -352,6 +355,7 @@ async def _read_solar_forecast(
         pv_power_forecast_w=(
             current_power_w if current_power_sources == forecast_sources else None
         ),
+        pv_power_forecast_profile=tuple(sorted(profile_power_w.items())),
         communication_state=CommunicationState.ONLINE,
     )
 
@@ -378,3 +382,21 @@ def _current_forecast_power_w(
         if interval_hours > 0 and timestamp <= now < next_timestamp:
             return energy_wh / interval_hours
     return None
+
+
+def _forecast_profile_power_w(
+    samples: list[tuple[datetime, float]],
+) -> tuple[tuple[datetime, float], ...]:
+    """Convert forecast interval energy into timestamped average power."""
+    samples.sort()
+    profile: list[tuple[datetime, float]] = []
+    for index, (timestamp, energy_wh) in enumerate(samples):
+        next_timestamp = (
+            samples[index + 1][0]
+            if index + 1 < len(samples)
+            else timestamp + timedelta(hours=1)
+        )
+        interval_hours = (next_timestamp - timestamp).total_seconds() / 3600
+        if interval_hours > 0:
+            profile.append((timestamp, energy_wh / interval_hours))
+    return tuple(profile)

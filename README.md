@@ -181,6 +181,33 @@ The Sunny Island remains the authority for battery SoC estimation, charging
 phases, and battery protection. PowerManager must send bounded power targets and
 must never write or invent a battery SoC.
 
+PowerManager adds recorder-friendly forecast sensors for PV power now, estimated
+household load power now, planned charge power, planned discharge power, and the
+PV/load forecast errors. The PV and estimated-load sensors include a timestamped
+`forecast_profile` attribute for the remaining day. Add the sensors to a native
+Home Assistant history graph to compare predictions with measured PV and load:
+
+```yaml
+type: history-graph
+title: PowerManager forecast validation
+hours_to_show: 24
+entities:
+  - sensor.<device>_forecast_pv_power_now
+  - sensor.<device>_pv_power
+  - sensor.<device>_forecast_load_power_now
+  - sensor.<device>_load_power
+  - sensor.<device>_planned_charge_power
+  - sensor.<device>_planned_discharge_power
+  - sensor.<device>_forecast_pv_error
+  - sensor.<device>_forecast_load_error
+```
+
+The exact entity IDs are shown in the integration device. This graph records
+what PowerManager predicted at each poll and what actually happened afterward;
+the forecast profile attribute exposes the future PV/load points used by the
+planner. Load estimation prefers recent complete days with the same weekday and
+falls back to recent complete days when Recorder lacks enough matching history.
+
 Instead of supplying an expected-load forecast entity, PowerManager can estimate
 the remaining load until local midnight from the selected whole-home load-power
 entity. It averages the same remainder of each of the configured number of

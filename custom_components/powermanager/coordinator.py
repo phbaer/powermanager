@@ -939,9 +939,34 @@ def _merge_forecasts(
     """Combine site-wide load with aggregate inverter PV forecast."""
     if site_forecast is None:
         return inverter_forecast
-    if inverter_forecast is None or site_forecast.remaining_pv_kwh is not None:
+    if inverter_forecast is None:
         return site_forecast
-    return replace(site_forecast, remaining_pv_kwh=inverter_forecast.remaining_pv_kwh)
+    return replace(
+        site_forecast,
+        remaining_pv_kwh=(
+            site_forecast.remaining_pv_kwh
+            if site_forecast.remaining_pv_kwh is not None
+            else inverter_forecast.remaining_pv_kwh
+        ),
+        pv_power_forecast_w=(
+            site_forecast.pv_power_forecast_w
+            if site_forecast.pv_power_forecast_w is not None
+            else inverter_forecast.pv_power_forecast_w
+        ),
+        pv_power_forecast_profile=(
+            site_forecast.pv_power_forecast_profile
+            or inverter_forecast.pv_power_forecast_profile
+        ),
+        load_power_forecast_w=(
+            site_forecast.load_power_forecast_w
+            if site_forecast.load_power_forecast_w is not None
+            else inverter_forecast.load_power_forecast_w
+        ),
+        load_power_forecast_profile=(
+            site_forecast.load_power_forecast_profile
+            or inverter_forecast.load_power_forecast_profile
+        ),
+    )
 
 
 def _ha_timezone(hass: HomeAssistant):

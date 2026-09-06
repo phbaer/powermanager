@@ -367,6 +367,47 @@ async def test_coordinator_exposes_predictive_shadow_plan_without_writes(coordin
     assert data.predictive_charge_inhibit is True
 
 
+async def test_forecast_visualization_sensors_expose_profiles(coordinator):
+    """Forecast sensors expose future points and recorder-friendly errors."""
+    now = datetime.now(UTC)
+    battery = BatteryState(timestamp=now, communication_state=CommunicationState.ONLINE)
+    coordinator.data = PowerManagerData(
+        coordinator.data.device_info,
+        battery,
+        EnergyState(
+            timestamp=now,
+            battery=battery,
+            grid=GridState(
+                timestamp=now,
+                pv_power_w=2100,
+                load_power_w=900,
+                communication_state=CommunicationState.ONLINE,
+            ),
+            forecast=ForecastState(
+                timestamp=now,
+                pv_power_forecast_w=1800,
+                load_power_forecast_w=1000,
+                pv_power_forecast_profile=((now, 1800),),
+                load_power_forecast_profile=((now, 1000),),
+                communication_state=CommunicationState.ONLINE,
+            ),
+        ),
+        predictive_target_power_w=500,
+        predictive_reason="charge_from_pv_surplus",
+    )
+    descriptions = {item.key: item for item in SENSORS}
+    pv_sensor = PowerManagerSensor(
+        coordinator, Mock(unique_id="test"), descriptions["forecast_pv_power_now"]
+    )
+    charge_sensor = PowerManagerSensor(
+        coordinator, Mock(unique_id="test"), descriptions["planned_charge_power"]
+    )
+    assert pv_sensor.native_value == 1800
+    assert pv_sensor.extra_state_attributes["forecast_profile"][0]["power_w"] == 1800
+    assert charge_sensor.native_value == 500
+    assert charge_sensor.extra_state_attributes["planner_reason"] == "charge_from_pv_surplus"
+
+
 async def test_coordinator_aggregates_configured_inverter_telemetry(coordinator):
     """Per-inverter generation and PV forecasts feed aggregate inputs."""
     now = datetime.now(UTC)

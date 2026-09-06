@@ -73,7 +73,7 @@
           "active_control_telemetry_sources": "Comma-separated addresses of verified reporting-only senders (for example a PV inverter). Unknown senders still block control; this list does not identify a controller.",
           "active_control_max_power_w": "Software upper bound for both charge and discharge commands. The existing Sunny Island bounds are not rewritten.",
           "active_control_max_duration_seconds": "Per-session software bound. A session always stops and restores its captured state at the deadline.",
-          "load_forecast_history_days": "Number of complete prior days to average. An estimate is withheld unless Recorder has usable data for every selected day.",
+          "load_forecast_history_days": "Number of complete prior same-weekday days to average. If too few exist, recent complete days fill the sample. An estimate is withheld unless Recorder has usable data for every selected day.",
           "telemetry_max_age": "Telemetry older than this is treated as stale and is excluded from policy evaluation.",
           "price_entity": "Current import price with an explicit currency/kWh or currency/MWh unit. Leave empty when using a fixed tariff.",
           "static_price_per_kwh": "Fixed contract import price in EUR per kWh. Leave empty when using a market-price entity. Only one price source can be configured.",
@@ -154,7 +154,11 @@
       "load_power": {"name": "Load power"},
       "price": {"name": "Market price"},
       "remaining_pv_forecast": {"name": "Remaining PV forecast"},
-      "expected_remaining_load": {"name": "Expected remaining load"}
+      "expected_remaining_load": {"name": "Expected remaining load"},
+      "forecast_pv_power_now": {"name": "PV forecast power now"},
+      "forecast_load_power_now": {"name": "Load forecast power now"},
+      "forecast_pv_error": {"name": "PV forecast error"},
+      "forecast_load_error": {"name": "Load forecast error"}
       ,"simulated_rule": {"name": "Simulated matching rule"},
       "simulated_target_power": {"name": "Simulated target battery power"},
       "simulated_decision": {"name": "Simulated decision"},
@@ -170,7 +174,9 @@
       "predictive_forecast_surplus": {"name": "Predictive forecast surplus"},
       "predictive_headroom": {"name": "Predictive battery headroom"},
       "predictive_charge_inhibit": {"name": "Predictive charge inhibit"},
-      "predictive_reason": {"name": "Predictive reason"}
+      "predictive_reason": {"name": "Predictive reason"},
+      "planned_charge_power": {"name": "Planned charge power"},
+      "planned_discharge_power": {"name": "Planned discharge power"}
     }
   },
   "issues": {

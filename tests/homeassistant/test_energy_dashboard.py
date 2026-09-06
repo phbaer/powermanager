@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from custom_components.powermanager.core.powermanager_core.inverters import InverterRole
 from custom_components.powermanager.ha_energy_dashboard import (
     _current_forecast_power_w,
+    _forecast_profile_power_w,
     _parse_configuration,
 )
 
@@ -67,3 +68,14 @@ def test_energy_dashboard_forecast_exposes_current_predicted_power() -> None:
         (datetime(2026, 6, 1, 13, tzinfo=UTC), 2400.0),
     ]
     assert _current_forecast_power_w(samples, now) == 1800.0
+
+
+def test_energy_dashboard_forecast_exposes_power_profile() -> None:
+    samples = [
+        (datetime(2026, 6, 1, 12, tzinfo=UTC), 1800.0),
+        (datetime(2026, 6, 1, 13, tzinfo=UTC), 2400.0),
+    ]
+    assert _forecast_profile_power_w(samples) == (
+        (datetime(2026, 6, 1, 12, tzinfo=UTC), 1800.0),
+        (datetime(2026, 6, 1, 13, tzinfo=UTC), 2400.0),
+    )

@@ -80,6 +80,13 @@ and applies battery charge, discharge, and protection limits. PowerManager must
 not write an SoC value. Grid charging is not permitted by the scheduled
 planner; it can only use measured PV surplus.
 
+The HA layer exposes recorder-friendly `forecast_pv_power_now`,
+`forecast_load_power_now`, `planned_charge_power`, and `planned_discharge_power`
+sensors, plus PV/load forecast-error sensors. The PV and estimated-load sensors
+carry a timestamped `forecast_profile` attribute for the remaining day. A native
+`history-graph` card can therefore show the predictions recorded in the past
+alongside measured PV/load and the resulting battery plan.
+
 ## Control milestones
 
 1. Define typed conditions/actions and deterministic policy evaluation.

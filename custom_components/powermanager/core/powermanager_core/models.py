@@ -80,6 +80,9 @@ class ForecastState:
     expected_remaining_load_kwh: float | None = None
     communication_state: CommunicationState = CommunicationState.UNKNOWN
     pv_power_forecast_w: float | None = None
+    load_power_forecast_w: float | None = None
+    pv_power_forecast_profile: tuple[tuple[datetime, float], ...] = ()
+    load_power_forecast_profile: tuple[tuple[datetime, float], ...] = ()
 
     @property
     def expected_surplus_kwh(self) -> float | None:
